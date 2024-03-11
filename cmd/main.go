@@ -76,7 +76,7 @@ func generateForUnix(projectName string) {
 	clone := exec.Command("git", "clone", "https://github.com/goravel/goravel.git", projectName)
 
 	fmt.Println(ui.DefaultMessage.Render("Cloning repo", projectName))
-	_, err := clone.Output()
+	err := clone.Run()
 	if err != nil {
 		panic(err)
 	}
@@ -84,19 +84,42 @@ func generateForUnix(projectName string) {
 
 	remove_git := exec.Command("rm", "-rf", projectName+"/.git", projectName+"/.github")
 
-	_, err = remove_git.Output()
+	err = remove_git.Run()
 	if err != nil {
 		panic(err)
 	}
 	fmt.Println(ui.DefaultMessage.Render("Git removal done"))
-	fmt.Println(ui.SuccessMessage.Render("Project scafolding done ! \n In order to run the project please run the following commands\n cd ./" + projectName + "\ngo mod tidy\ncp .env.example .env\ngo run . artisan key:generate"))
+	fmt.Println(ui.DefaultMessage.Render("Instaling the Goravel"))
+	install := exec.Command("go", "mod", "tidy")
+	install.Dir = ("./" + projectName)
+	install.Run()
+
+	fmt.Print(ui.SuccessMessage.Render("Goravel installed sucessfuly !"))
+
+	cp_env := exec.Command("cp", ".env.example", ".env")
+	cp_env.Dir = ("./" + projectName)
+	err = cp_env.Run()
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println(ui.DefaultMessage.Render("Generating app key "))
+
+	app_key := exec.Command("go", "run", ".", "artisan", "key:", "generate")
+	app_key.Dir = ("./" + projectName)
+	err = app_key.Run()
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println("You can cd into your project and start developing ")
 }
 
 func generateForWindows(projectName string) {
 	clone := exec.Command("git", "clone", "https://github.com/goravel/goravel.git", projectName)
 
 	fmt.Println(ui.DefaultMessage.Render("Cloning repo", projectName))
-	_, err := clone.Output()
+	err := clone.Run()
 	if err != nil {
 		panic(err)
 	}
@@ -104,12 +127,37 @@ func generateForWindows(projectName string) {
 
 	remove_git := exec.Command("Remove-Item", "-Path", "./"+projectName+"/.git", "./"+projectName+"/.github", "-Recursive", "-Force")
 
-	_, err = remove_git.Output()
+	err = remove_git.Run()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(ui.DefaultMessage.Render("Git removal done"))
+
+	fmt.Println(ui.DefaultMessage.Render("Instaling the Goravel"))
+	install := exec.Command("go", "mod", "tidy")
+	install.Dir = ("./" + projectName)
+	err = install.Run()
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Println(ui.DefaultMessage.Render("Git removal done"))
-	fmt.Println(ui.SuccessMessage.Render("In order to run the project please run the following commands: "))
-	fmt.Println(ui.SuccessMessage.Render("cd ./" + projectName + "\ngo mod tidy\ncp .env.example .env\ngo run . artisan key:generate"))
+	fmt.Println(ui.DefaultMessage.Render("Generating app key "))
+	cp_env := exec.Command("cp", ".env.example", ".env")
+	cp_env.Dir = ("./" + projectName)
+	err = cp_env.Run()
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Print(ui.SuccessMessage.Render("Goravel installed sucessfuly !"))
+	fmt.Println(ui.DefaultMessage.Render("Generating app key "))
+
+	app_key := exec.Command("go", "run", ".", "artisan", "key:", "generate")
+	app_key.Dir = ("./" + projectName)
+	err = app_key.Run()
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println("You can cd into your project and start developing ")
 }
