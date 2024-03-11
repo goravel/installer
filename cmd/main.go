@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"runtime"
 
 	"github.com/goravel/installer/ui"
@@ -61,12 +62,53 @@ func generate(projectName string) {
 	os := runtime.GOOS
 	switch os {
 	case "darwin":
-		fmt.Println(ui.DefaultMessage.Render("Generating ... .. . .. . .. proj for  ", os))
+		generateForUnix(projectName)
 		return
 	case "windows":
-		fmt.Println(ui.DefaultMessage.Render("Generating ... .. . .. . .. proj for  ", os))
+		generateForWindows(projectName)
 		return
 	default:
 		fmt.Println(ui.ErrorMessage.Render("Unsupported platform. Closing"))
 	}
+}
+
+func generateForUnix(projectName string) {
+	clone := exec.Command("git", "clone", "https://github.com/goravel/goravel.git", projectName)
+
+	fmt.Println(ui.DefaultMessage.Render("Cloning repo", projectName))
+	_, err := clone.Output()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(ui.DefaultMessage.Render("Repo cloned"))
+
+	remove_git := exec.Command("rm", "-rf", projectName+"/.git", projectName+"/.github")
+
+	_, err = remove_git.Output()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(ui.DefaultMessage.Render("Git removal done"))
+	fmt.Println(ui.DefaultMessage.Render("Project scafolding done"))
+}
+
+func generateForWindows(projectName string) {
+	clone := exec.Command("git", "clone", "https://github.com/goravel/goravel.git", projectName)
+
+	fmt.Println(ui.DefaultMessage.Render("Cloning repo", projectName))
+	_, err := clone.Output()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(ui.DefaultMessage.Render("Repo cloned"))
+
+	remove_git := exec.Command("Remove-Item", "-Path", "./"+projectName+"/.git", "./"+projectName+"/.github", "-Recursive", "-Force")
+
+	_, err = remove_git.Output()
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println(ui.DefaultMessage.Render("Git removal done"))
+	fmt.Println(ui.DefaultMessage.Render("Project scafolding done"))
 }
