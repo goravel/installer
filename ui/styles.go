@@ -5,9 +5,11 @@ import "github.com/charmbracelet/lipgloss"
 // inside here put the input and create the styleing with lipgloss
 
 var (
-	primaryColor = lipgloss.Color("#249D9F")
-	muteColor    = lipgloss.Color("#808080")
-	errorColor   = lipgloss.Color("#f00")
+	primaryColor   = lipgloss.Color("#249D9F")
+	secondaryColor = lipgloss.Color("#F28030")
+	muteColor      = lipgloss.Color("#808080")
+	errorColor     = lipgloss.Color("#f00")
+	successColor   = lipgloss.Color("#249D9F")
 
 	InputLabelStyle = lipgloss.NewStyle().
 			Bold(true).
@@ -30,6 +32,7 @@ var (
 			Bold(true).
 			Foreground(errorColor)
 
-	DefaultMessage = lipgloss.NewStyle().Foreground(primaryColor).MarginLeft(5).MarginTop(1)
+	DefaultMessage = lipgloss.NewStyle().Foreground(secondaryColor).MarginLeft(5).MarginTop(1)
+	SuccessMessage = lipgloss.NewStyle().Foreground(successColor).MarginLeft(5).MarginTop(1)
 	ErrorMessage   = lipgloss.NewStyle().Foreground(errorColor)
 )

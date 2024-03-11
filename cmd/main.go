@@ -89,7 +89,7 @@ func generateForUnix(projectName string) {
 		panic(err)
 	}
 	fmt.Println(ui.DefaultMessage.Render("Git removal done"))
-	fmt.Println(ui.DefaultMessage.Render("Project scafolding done"))
+	fmt.Println(ui.SuccessMessage.Render("Project scafolding done ! \n In order to run the project please run the following commands\n cd ./" + projectName + "\ngo mod tidy\ncp .env.example .env\ngo run . artisan key:generate"))
 }
 
 func generateForWindows(projectName string) {
@@ -110,5 +110,6 @@ func generateForWindows(projectName string) {
 	}
 
 	fmt.Println(ui.DefaultMessage.Render("Git removal done"))
-	fmt.Println(ui.DefaultMessage.Render("Project scafolding done"))
+	fmt.Println(ui.SuccessMessage.Render("In order to run the project please run the following commands: "))
+	fmt.Println(ui.SuccessMessage.Render("cd ./" + projectName + "\ngo mod tidy\ncp .env.example .env\ngo run . artisan key:generate"))
 }
