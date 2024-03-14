@@ -94,7 +94,7 @@ func generateForUnix(projectName string) {
 	install.Dir = ("./" + projectName)
 	install.Run()
 
-	fmt.Print(ui.SuccessMessage.Render("Goravel installed sucessfuly !"))
+	fmt.Print(ui.SuccessMessage.Render("Goravel installed sucessfully!"))
 
 	cp_env := exec.Command("cp", ".env.example", ".env")
 	cp_env.Dir = ("./" + projectName)
