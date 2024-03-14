@@ -142,7 +142,7 @@ func generateForWindows(projectName string) {
 	}
 
 	fmt.Println(ui.DefaultMessage.Render("Generating app key "))
-	cp_env := exec.Command("cp", ".env.example", ".env")
+	copyEnv := exec.Command("cp", ".env.example", ".env")
 	cp_env.Dir = ("./" + projectName)
 	err = cp_env.Run()
 	if err != nil {
