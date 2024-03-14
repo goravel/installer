@@ -82,7 +82,7 @@ func generateForUnix(projectName string) {
 	}
 	fmt.Println(ui.DefaultMessage.Render("Repo cloned"))
 
-	remove_git := exec.Command("rm", "-rf", projectName+"/.git", projectName+"/.github")
+	removeFiles := exec.Command("rm", "-rf", projectName+"/.git", projectName+"/.github")
 
 	err = remove_git.Run()
 	if err != nil {
