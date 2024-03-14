@@ -20,7 +20,7 @@ const welcomeHeading = `
 var rootCmd = &cobra.Command{
 	Use:   "goravel",
 	Short: "Goravel installer",
-	Long:  `This is the goravel installer , inspired by Laravel , build with love and care`,
+	Long:  `This is the goravel installer, build with love and care`,
 }
 
 var newProjectCmd = &cobra.Command{
