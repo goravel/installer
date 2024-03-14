@@ -152,7 +152,7 @@ func generateForWindows(projectName string) {
 	fmt.Print(ui.SuccessMessage.Render("Goravel installed sucessfuly !"))
 	fmt.Println(ui.DefaultMessage.Render("Generating app key "))
 
-	app_key := exec.Command("go", "run", ".", "artisan", "key:", "generate")
+	initAppKey := exec.Command("go", "run", ".", "artisan", "key:", "generate")
 	app_key.Dir = ("./" + projectName)
 	err = app_key.Run()
 	if err != nil {
