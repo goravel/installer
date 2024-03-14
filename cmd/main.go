@@ -125,7 +125,7 @@ func generateForWindows(projectName string) {
 	}
 	fmt.Println(ui.DefaultMessage.Render("Repo cloned"))
 
-	remove_git := exec.Command("Remove-Item", "-Path", "./"+projectName+"/.git", "./"+projectName+"/.github", "-Recursive", "-Force")
+	removeFiles := exec.Command("Remove-Item", "-Path", "./"+projectName+"/.git", "./"+projectName+"/.github", "-Recursive", "-Force")
 
 	err = remove_git.Run()
 	if err != nil {
