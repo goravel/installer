@@ -64,11 +64,14 @@ func generate(projectName string) {
 	case "darwin":
 		generateForUnix(projectName)
 		return
+	case "linux":
+		generateForUnix(projectName)
+		return
 	case "windows":
 		generateForWindows(projectName)
 		return
 	default:
-		fmt.Println(ui.ErrorMessage.Render("Unsupported platform. Closing"))
+		fmt.Println(ui.ErrorMessage.Render("Following platform " + os + " is not supported. Installer is closing..."))
 	}
 }
 
