@@ -87,7 +87,7 @@ func generateForUnix(projectName string) {
 
 	removeFiles := exec.Command("rm", "-rf", projectName+"/.git", projectName+"/.github")
 
-	err = remove_git.Run()
+	err = removeFiles.Run()
 	if err != nil {
 		panic(err)
 	}
@@ -95,13 +95,16 @@ func generateForUnix(projectName string) {
 	fmt.Println(ui.DefaultMessage.Render("Instaling the Goravel"))
 	install := exec.Command("go", "mod", "tidy")
 	install.Dir = ("./" + projectName)
-	install.Run()
+	err = install.Run()
+	if err != nil {
+		panic(err)
+	}
 
 	fmt.Print(ui.SuccessMessage.Render("Goravel installed sucessfully!"))
 
-	copeEnv := exec.Command("cp", ".env.example", ".env")
-	cp_env.Dir = ("./" + projectName)
-	err = cp_env.Run()
+	copyEnv := exec.Command("cp", ".env.example", ".env")
+	copyEnv.Dir = ("./" + projectName)
+	err = copyEnv.Run()
 	if err != nil {
 		panic(err)
 	}
@@ -109,8 +112,8 @@ func generateForUnix(projectName string) {
 	fmt.Println(ui.DefaultMessage.Render("Generating app key "))
 
 	initAppKey := exec.Command("go", "run", ".", "artisan", "key:", "generate")
-	app_key.Dir = ("./" + projectName)
-	err = app_key.Run()
+	initAppKey.Dir = ("./" + projectName)
+	err = initAppKey.Run()
 	if err != nil {
 		panic(err)
 	}
@@ -130,7 +133,7 @@ func generateForWindows(projectName string) {
 
 	removeFiles := exec.Command("Remove-Item", "-Path", "./"+projectName+"/.git", "./"+projectName+"/.github", "-Recursive", "-Force")
 
-	err = remove_git.Run()
+	err = removeFiles.Run()
 	if err != nil {
 		panic(err)
 	}
@@ -146,8 +149,8 @@ func generateForWindows(projectName string) {
 
 	fmt.Println(ui.DefaultMessage.Render("Generating app key "))
 	copyEnv := exec.Command("cp", ".env.example", ".env")
-	cp_env.Dir = ("./" + projectName)
-	err = cp_env.Run()
+	copyEnv.Dir = ("./" + projectName)
+	err = copyEnv.Run()
 	if err != nil {
 		panic(err)
 	}
@@ -156,8 +159,8 @@ func generateForWindows(projectName string) {
 	fmt.Println(ui.DefaultMessage.Render("Generating app key "))
 
 	initAppKey := exec.Command("go", "run", ".", "artisan", "key:", "generate")
-	app_key.Dir = ("./" + projectName)
-	err = app_key.Run()
+	initAppKey.Dir = ("./" + projectName)
+	err = initAppKey.Run()
 	if err != nil {
 		panic(err)
 	}
