@@ -75,16 +75,14 @@ func generateForUnix(projectName string) {
 	clone := exec.Command("git", "clone", "https://github.com/goravel/goravel.git", projectName)
 	fmt.Println(ui.DefaultMessage.Render("Creating a 'goravel/goravel' project at ./" + projectName))
 	if err := clone.Run(); err != nil {
-		fmt.Printf(ui.ErrorMessage.Render("Error while generating the project : %s"), err)
-		panic(err)
+		log.Fatalf(ui.ErrorMessage.Render("Error while generating the project : %s"), err)
 	}
 	fmt.Println(ui.SuccessMessage.Render("Created project in ./" + projectName + " successfully!"))
 
 	fmt.Println(ui.DefaultMessage.Render("Git cleanup initiated..."))
 	removeFiles := exec.Command("rm", "-rf", projectName+"/.git", projectName+"/.github")
 	if err := removeFiles.Run(); err != nil {
-		log.Panicf(ui.ErrorMessage.Render("Error happend while removing the files : %s"), err)
-		panic(err)
+		log.Fatalf(ui.ErrorMessage.Render("Error happend while removing the files : %s"), err)
 	}
 	fmt.Println(ui.SuccessMessage.Render("Git cleanup done."))
 
@@ -92,8 +90,7 @@ func generateForUnix(projectName string) {
 	install := exec.Command("go", "mod", "tidy")
 	install.Dir = ("./" + projectName)
 	if err := install.Run(); err != nil {
-		log.Panicf(ui.ErrorMessage.Render("Error while installing the dependecies : %s"), err)
-		panic(err)
+		log.Fatalf(ui.ErrorMessage.Render("Error while installing the dependecies : %s"), err)
 	}
 	fmt.Println(ui.SuccessMessage.Render("Goravel installed successfully!"))
 
@@ -101,8 +98,7 @@ func generateForUnix(projectName string) {
 	copyEnv := exec.Command("cp", ".env.example", ".env")
 	copyEnv.Dir = ("./" + projectName)
 	if err := copyEnv.Run(); err != nil {
-		log.Panicf(ui.ErrorMessage.Render("Error while generating the .env file : %s"), err)
-		panic(err)
+		log.Fatalf(ui.ErrorMessage.Render("Error while generating the .env file : %s"), err)
 	}
 	fmt.Println(ui.SuccessMessage.Render(".env file generated successfully!"))
 
@@ -110,30 +106,26 @@ func generateForUnix(projectName string) {
 	initAppKey := exec.Command("go", "run", ".", "artisan", "key:", "generate")
 	initAppKey.Dir = ("./" + projectName)
 	if err := initAppKey.Run(); err != nil {
-		log.Panicf(ui.ErrorMessage.Render("Error while generating the app key : %s"), err)
-		panic(err)
+		log.Fatalf(ui.ErrorMessage.Render("Error while generating the app key : %s"), err)
 	}
 	fmt.Println(ui.SuccessMessage.Render("App key generated successfully !"))
 
 	fmt.Println(ui.InputLabelMuteTextStyle.Render("You can cd into your project and start developing "))
 	fmt.Println(ui.InputLabelMuteTextStyle.Render("cd ./", projectName, "&& go run ."))
-
 }
 
 func generateForWindows(projectName string) {
 	clone := exec.Command("git", "clone", "https://github.com/goravel/goravel.git", projectName)
 	fmt.Println(ui.DefaultMessage.Render("Creating a 'goravel/goravel' project at ./" + projectName))
 	if err := clone.Run(); err != nil {
-		fmt.Printf(ui.ErrorMessage.Render("Error while generating the project : %s"), err)
-		panic(err)
+		log.Fatalf(ui.ErrorMessage.Render("Error while generating the project : %s"), err)
 	}
 	fmt.Println(ui.SuccessMessage.Render("Created project in ./" + projectName + " successfully!"))
 
 	fmt.Println(ui.DefaultMessage.Render("Git cleanup initiated ..."))
 	removeFiles := exec.Command("Remove-Item", "-Path", "./"+projectName+"/.git", "./"+projectName+"/.github", "-Recursive", "-Force")
 	if err := removeFiles.Run(); err != nil {
-		log.Panicf(ui.ErrorMessage.Render("Error happend while removing the files : %s"), err)
-		panic(err)
+		log.Fatalf(ui.ErrorMessage.Render("Error happend while removing the files : %s"), err)
 	}
 	fmt.Println(ui.SuccessMessage.Render("Git cleanup done."))
 
@@ -141,8 +133,7 @@ func generateForWindows(projectName string) {
 	install := exec.Command("go", "mod", "tidy")
 	install.Dir = ("./" + projectName)
 	if err := install.Run(); err != nil {
-		log.Panicf(ui.ErrorMessage.Render("Error happend while installing goravel : %s"), err)
-		panic(err)
+		log.Fatalf(ui.ErrorMessage.Render("Error happend while installing goravel : %s"), err)
 	}
 	fmt.Println(ui.SuccessMessage.Render("Goravel installed successfully."))
 
@@ -150,8 +141,7 @@ func generateForWindows(projectName string) {
 	copyEnv := exec.Command("cp", ".env.example", ".env")
 	copyEnv.Dir = ("./" + projectName)
 	if err := copyEnv.Run(); err != nil {
-		log.Panicf(ui.ErrorMessage.Render("Error while generating .env file : %s"), err)
-		panic(err)
+		log.Fatalf(ui.ErrorMessage.Render("Error while generating .env file : %s"), err)
 	}
 	fmt.Print(ui.SuccessMessage.Render(".env generated successfully!"))
 
@@ -159,8 +149,7 @@ func generateForWindows(projectName string) {
 	initAppKey := exec.Command("go", "run", ".", "artisan", "key:", "generate")
 	initAppKey.Dir = ("./" + projectName)
 	if err := initAppKey.Run(); err != nil {
-		log.Panicf(ui.ErrorMessage.Render("Error while generating application key : %s"), err)
-		panic(err)
+		log.Fatalf(ui.ErrorMessage.Render("Error while generating application key : %s"), err)
 	}
 	fmt.Println(ui.SuccessMessage.Render("App key generated successfully !"))
 
