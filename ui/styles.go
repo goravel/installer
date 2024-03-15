@@ -32,7 +32,7 @@ var (
 			Bold(true).
 			Foreground(primaryColor)
 
-	DefaultMessage = lipgloss.NewStyle().Foreground(secondaryColor).MarginLeft(2).MarginTop(1)
-	SuccessMessage = lipgloss.NewStyle().Foreground(successColor).MarginLeft(2).MarginTop(1)
+	DefaultMessage = lipgloss.NewStyle().Foreground(secondaryColor).MarginLeft(2)
+	SuccessMessage = lipgloss.NewStyle().Foreground(successColor).MarginLeft(2)
 	ErrorMessage   = lipgloss.NewStyle().Foreground(errorColor)
 )

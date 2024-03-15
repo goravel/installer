@@ -2,13 +2,12 @@ package main
 
 import (
 	"fmt"
+	"github.com/goravel/installer/ui"
+	"github.com/spf13/cobra"
 	"log"
 	"os"
 	"os/exec"
 	"runtime"
-
-	"github.com/goravel/installer/ui"
-	"github.com/spf13/cobra"
 )
 
 const welcomeHeading = `
@@ -95,7 +94,7 @@ func generateForUnix(projectName string) {
 		log.Panicf(ui.ErrorMessage.Render("Error while installing the dependecies : %s"), err)
 		panic(err)
 	}
-	fmt.Print(ui.SuccessMessage.Render("Goravel installed sucessfully!"))
+	fmt.Println(ui.SuccessMessage.Render("Goravel installed sucessfully!"))
 
 	fmt.Println(ui.DefaultMessage.Render("Generating .env file..."))
 	copyEnv := exec.Command("cp", ".env.example", ".env")
@@ -104,7 +103,7 @@ func generateForUnix(projectName string) {
 		log.Panicf(ui.ErrorMessage.Render("Error while generating the .env file : %s"), err)
 		panic(err)
 	}
-	fmt.Print(ui.SuccessMessage.Render(".env file generated sucessfully!"))
+	fmt.Println(ui.SuccessMessage.Render(".env file generated sucessfully!"))
 
 	fmt.Println(ui.DefaultMessage.Render("Generating app key "))
 	initAppKey := exec.Command("go", "run", ".", "artisan", "key:", "generate")
