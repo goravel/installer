@@ -87,8 +87,7 @@ func generateForUnix(projectName string) {
 
 	removeFiles := exec.Command("rm", "-rf", projectName+"/.git", projectName+"/.github")
 
-	err = removeFiles.Run()
-	if err != nil {
+	if err := removeFiles.Run(); err != nil {
 		panic(err)
 	}
 	fmt.Println(ui.DefaultMessage.Render("Git removal done"))
