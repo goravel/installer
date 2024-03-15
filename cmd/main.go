@@ -61,10 +61,7 @@ func generate(projectName string) {
 	fmt.Println(ui.DefaultMessage.Render("This clones the repo and so on inside ", projectName))
 	os := runtime.GOOS
 	switch os {
-	case "darwin":
-		generateForUnix(projectName)
-		return
-	case "linux":
+	case "darwin", "linux":
 		generateForUnix(projectName)
 		return
 	case "windows":
