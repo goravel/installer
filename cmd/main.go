@@ -2,12 +2,14 @@ package main
 
 import (
 	"fmt"
-	"github.com/goravel/installer/ui"
-	"github.com/spf13/cobra"
 	"log"
 	"os"
 	"os/exec"
 	"runtime"
+
+	"github.com/spf13/cobra"
+
+	"github.com/goravel/installer/ui"
 )
 
 const welcomeHeading = `
