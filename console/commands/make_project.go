@@ -90,8 +90,8 @@ func (receiver *NewCommand) verifyIfDirectoryExists(path string) bool {
 }
 
 // generate Generate the project.
-func (receiver *NewCommand) generate(ctx console.Context, _ string) error {
-	ctx.Info("Generating project")
+func (receiver *NewCommand) generate(ctx console.Context, path string) error {
+	ctx.Info("Generating project " + path)
 	return nil
 }
 
