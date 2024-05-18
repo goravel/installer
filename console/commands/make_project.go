@@ -2,6 +2,8 @@ package commands
 
 import (
 	"errors"
+	"os"
+	"path/filepath"
 	"regexp"
 
 	"github.com/gookit/color"
@@ -64,11 +66,38 @@ func (receiver *NewCommand) Handle(ctx console.Context) (err error) {
 			},
 		})
 		if err != nil {
-			return err
+			color.Redln(err.Error())
+			return nil
 		}
 	}
 
-	ctx.Info("Creating project " + name)
+	path := receiver.getPath(name)
+	force := ctx.OptionBool("force")
+	if !force {
+		if receiver.verifyIfDirectoryExists(path) {
+			color.Redln("the directory already exists. use the --force flag to overwrite")
+			return nil
+		}
+	}
 
+	return receiver.generate(ctx, path)
+}
+
+// verifyIfDirectoryExists Verify if the directory already exists.
+func (receiver *NewCommand) verifyIfDirectoryExists(path string) bool {
+	_, err := os.Stat(path)
+	return !os.IsNotExist(err)
+}
+
+// generate Generate the project.
+func (receiver *NewCommand) generate(ctx console.Context, _ string) error {
+	ctx.Info("Generating project")
 	return nil
+}
+
+// getPath Get the full path to the command.
+func (receiver *NewCommand) getPath(name string) string {
+	pwd, _ := os.Getwd()
+
+	return filepath.Clean(filepath.Join(pwd, name))
 }
