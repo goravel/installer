@@ -10,6 +10,6 @@ type Kernel struct {
 
 func (kernel *Kernel) Commands() []console.Command {
 	return []console.Command{
-		&commands.MakeProjectCommand{},
+		&commands.NewCommand{},
 	}
 }
