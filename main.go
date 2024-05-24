@@ -3,14 +3,15 @@ package main
 import (
 	"os"
 
-	"github.com/goravel/framework/console"
+	frameworkconsole "github.com/goravel/framework/console"
 
-	installerconsole "github.com/goravel/installer/console"
+	"github.com/goravel/installer/console"
+	"github.com/goravel/installer/support"
 )
 
 func main() {
-	cliApp := console.NewApplication()
-	kernel := &installerconsole.Kernel{}
+	cliApp := frameworkconsole.NewApplication("Goravel Installer", support.Version, "go run . [global options] command [command options] [arguments...]", support.Version, false)
+	kernel := &console.Kernel{}
 	cliApp.Register(kernel.Commands())
 	cliApp.Run(os.Args, false)
 }

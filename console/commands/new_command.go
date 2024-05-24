@@ -49,7 +49,7 @@ func (receiver *NewCommand) Extend() command.Extend {
 
 // Handle Execute the console command.
 func (receiver *NewCommand) Handle(ctx console.Context) (err error) {
-	color.Println(ui.LogoStyle.Render(support.WelcomeHeading))
+	color.Default().Println(ui.LogoStyle.Render(support.WelcomeHeading))
 	ctx.NewLine()
 	name := ctx.Argument(0)
 	if name == "" {
@@ -119,17 +119,17 @@ func (receiver *NewCommand) generate(ctx console.Context, name string) error {
 
 	// clone the repository
 	clone := exec.Command("git", "clone", "https://github.com/goravel/goravel.git", path)
-	color.Greenln("creating a \"goravel/goravel\" project at \"" + name + "\"")
+	color.Green().Println("creating a \"goravel/goravel\" project at \"" + name + "\"")
 	if err := clone.Run(); err != nil {
 		ctx.NewLine()
 		color.Errorf("error while generating the project : %s\n", err.Error())
 		ctx.NewLine()
 		return nil
 	}
-	color.Greenln("created project in " + path)
+	color.Green().Println("created project in " + path)
 
 	// git cleanup
-	color.Println("> @rm -rf " + name + "/.git " + name + "/.github")
+	color.Default().Println("> @rm -rf " + name + "/.git " + name + "/.github")
 	var removeFiles *exec.Cmd
 	if runtime.GOOS == "windows" {
 		removeFiles = exec.Command("Remove-Item", "-Path", path+"/.git", path+"/.github", "-Recursive", "-Force")
@@ -147,7 +147,7 @@ func (receiver *NewCommand) generate(ctx console.Context, name string) error {
 	ctx.NewLine()
 
 	// install dependencies
-	color.Println("> @go mod tidy")
+	color.Default().Println("> @go mod tidy")
 	install := exec.Command("go", "mod", "tidy")
 	install.Dir = path
 	if err := install.Run(); err != nil {
@@ -161,7 +161,7 @@ func (receiver *NewCommand) generate(ctx console.Context, name string) error {
 	ctx.NewLine()
 
 	// generate .env file
-	color.Println("> @cp .env.example .env")
+	color.Default().Println("> @cp .env.example .env")
 	copyEnv := exec.Command("cp", ".env.example", ".env")
 	copyEnv.Dir = path
 	if err := copyEnv.Run(); err != nil {
@@ -175,7 +175,7 @@ func (receiver *NewCommand) generate(ctx console.Context, name string) error {
 	ctx.NewLine()
 
 	// generate app key
-	color.Println("> @go run . artisan key:generate")
+	color.Default().Println("> @go run . artisan key:generate")
 	initAppKey := exec.Command("go", "run", ".", "artisan", "key:generate")
 	initAppKey.Dir = path
 	if err := initAppKey.Run(); err != nil {

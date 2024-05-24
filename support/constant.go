@@ -1,5 +1,7 @@
 package support
 
+const Version string = "v0.0.1"
+
 const WelcomeHeading = `
    ___   ___   ___    _ __   __ ___  _    
   / __| / _ \ | _ \  /_\\ \ / /| __|| |   
