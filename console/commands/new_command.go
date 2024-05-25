@@ -14,7 +14,6 @@ import (
 	"github.com/pterm/pterm"
 
 	"github.com/goravel/installer/support"
-	"github.com/goravel/installer/ui"
 )
 
 type NewCommand struct {
@@ -35,10 +34,6 @@ func (receiver *NewCommand) Extend() command.Extend {
 	return command.Extend{
 		Flags: []command.Flag{
 			&command.BoolFlag{
-				Name:  "dev",
-				Usage: "Installs the latest 'development' release",
-			},
-			&command.BoolFlag{
 				Name:    "force",
 				Aliases: []string{"f"},
 				Usage:   "Forces install even if the directory already exists",
@@ -49,7 +44,7 @@ func (receiver *NewCommand) Extend() command.Extend {
 
 // Handle Execute the console command.
 func (receiver *NewCommand) Handle(ctx console.Context) (err error) {
-	color.Default().Println(ui.LogoStyle.Render(support.WelcomeHeading))
+	color.Cyan().Println(support.WelcomeHeading)
 	ctx.NewLine()
 	name := ctx.Argument(0)
 	if name == "" {
@@ -78,13 +73,11 @@ func (receiver *NewCommand) Handle(ctx console.Context) (err error) {
 	}
 
 	force := ctx.OptionBool("force")
-	if !force {
-		if receiver.verifyIfDirectoryExists(receiver.getPath(name)) {
-			ctx.NewLine()
-			color.Errorln("the directory already exists. use the --force flag to overwrite")
-			ctx.NewLine()
-			return nil
-		}
+	if !force && receiver.verifyIfDirectoryExists(receiver.getPath(name)) {
+		ctx.NewLine()
+		color.Errorln("the directory already exists. use the --force flag to overwrite")
+		ctx.NewLine()
+		return nil
 	}
 
 	return receiver.generate(ctx, name)
@@ -190,7 +183,7 @@ func (receiver *NewCommand) generate(ctx console.Context, name string) error {
 
 	color.Infoln("Application ready in [" + bold.Sprintf("%s", name) + "]. Build something amazing!")
 	ctx.NewLine()
-	color.Infoln("Are you new to Goravel? Please visit https://goravel.dev to get started. Build something amazing!")
+	color.Infoln("Are you new to Goravel? Please visit https://goravel.dev to get started.")
 	ctx.NewLine()
 	return nil
 }

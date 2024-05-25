@@ -10,7 +10,10 @@ import (
 )
 
 func main() {
-	cliApp := frameworkconsole.NewApplication("Goravel Installer", support.Version, "go run . [global options] command [command options] [arguments...]", support.Version, false)
+	name := "Goravel Installer"
+	usage := "A command-line tool to install Goravel projects."
+	usageText := "go run . [global options] command [command options] [arguments...]"
+	cliApp := frameworkconsole.NewApplication(name, usage, usageText, support.Version, false)
 	kernel := &console.Kernel{}
 	cliApp.Register(kernel.Commands())
 	cliApp.Run(os.Args, false)
