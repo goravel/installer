@@ -5,6 +5,7 @@ import (
 	"io"
 	"testing"
 
+	"github.com/goravel/framework/contracts/console"
 	"github.com/goravel/framework/contracts/console/command"
 	consolemocks "github.com/goravel/framework/mocks/console"
 	"github.com/goravel/framework/support/color"
@@ -28,6 +29,11 @@ func TestNewCommand(t *testing.T) {
 	mockContext.On("Argument", 0).Return("").Once()
 	mockContext.On("Ask", "What is the name of your project?", mock.Anything).Return("", errors.New("the project name is required")).Once()
 	mockContext.On("NewLine").Return()
+	mockContext.On("Spinner", mock.Anything, mock.AnythingOfType("console.SpinnerOption")).Return(nil).
+		Run(func(args mock.Arguments) {
+			options := args.Get(1).(console.SpinnerOption)
+			options.Action()
+		}).Times(5)
 	assert.Contains(t, color.CaptureOutput(func(w io.Writer) {
 		assert.Nil(t, newCommand.Handle(mockContext))
 	}), "the project name is required")
@@ -39,6 +45,7 @@ func TestNewCommand(t *testing.T) {
 	})
 	assert.Contains(t, captureOutput, ".env file generated successfully!")
 	assert.Contains(t, captureOutput, "App key generated successfully!")
+	assert.True(t, file.Exists("example-app"))
 
 	mockContext.On("Argument", 0).Return("example-app").Once()
 	mockContext.On("OptionBool", "force").Return(false).Once()
