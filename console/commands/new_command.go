@@ -155,7 +155,7 @@ func (receiver *NewCommand) generate(ctx console.Context, name string) error {
 		color.Errorf("error while installing the dependecies : %s\n", err)
 		return nil
 	}
-	color.Successln("goravel installed successfully!")
+	color.Successln("Goravel installed successfully!")
 
 	// generate .env file
 	copyEnv := exec.Command("cp", ".env.example", ".env")
