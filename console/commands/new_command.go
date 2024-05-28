@@ -105,7 +105,7 @@ func (receiver *NewCommand) generate(ctx console.Context, name string) error {
 
 	// clone the repository
 	clone := exec.Command("git", "clone", "https://github.com/goravel/goravel.git", path)
-	err := ctx.Spinner("creating a \"goravel/goravel\" project at \""+name+"\"", console.SpinnerOption{
+	err := ctx.Spinner("Creating a \"goravel/goravel\" project at \""+name+"\"", console.SpinnerOption{
 		Action: func() {
 			if err := clone.Run(); err != nil {
 				color.Errorf("error while generating the project : %s\n", err.Error())
