@@ -48,7 +48,6 @@ func (receiver *NewCommand) Handle(ctx console.Context) (err error) {
 	ctx.NewLine()
 	name := ctx.Argument(0)
 	if name == "" {
-		ctx.NewLine()
 		name, err = ctx.Ask("What is the name of your project?", console.AskOption{
 			Placeholder: "E.g example-app",
 			Prompt:      ">",
@@ -65,18 +64,14 @@ func (receiver *NewCommand) Handle(ctx console.Context) (err error) {
 			},
 		})
 		if err != nil {
-			ctx.NewLine()
 			color.Errorln(err.Error())
-			ctx.NewLine()
 			return nil
 		}
 	}
 
 	force := ctx.OptionBool("force")
 	if !force && receiver.verifyIfDirectoryExists(receiver.getPath(name)) {
-		ctx.NewLine()
 		color.Errorln("the directory already exists. use the --force flag to overwrite")
-		ctx.NewLine()
 		return nil
 	}
 
@@ -104,22 +99,18 @@ func (receiver *NewCommand) generate(ctx console.Context, name string) error {
 
 	// remove the directory if it already exists
 	if err := os.RemoveAll(path); err != nil {
-		ctx.NewLine()
 		color.Errorf("error while removing the directory : %s\n", err.Error())
-		ctx.NewLine()
 		return nil
 	}
 
 	// clone the repository
 	clone := exec.Command("git", "clone", "https://github.com/goravel/goravel.git", path)
-	color.Green().Println("creating a \"goravel/goravel\" project at \"" + name + "\"")
+	color.Successln("creating a \"goravel/goravel\" project at \"" + name + "\"")
 	if err := clone.Run(); err != nil {
-		ctx.NewLine()
 		color.Errorf("error while generating the project : %s\n", err.Error())
-		ctx.NewLine()
 		return nil
 	}
-	color.Green().Println("created project in " + path)
+	color.Successln("created project in " + path)
 
 	// git cleanup
 	color.Default().Println("> @rm -rf " + name + "/.git " + name + "/.github")
@@ -130,60 +121,41 @@ func (receiver *NewCommand) generate(ctx console.Context, name string) error {
 		removeFiles = exec.Command("rm", "-rf", path+"/.git", path+"/.github")
 	}
 	if err := removeFiles.Run(); err != nil {
-		ctx.NewLine()
 		color.Errorf("error happend while removing the files : %s\n", err)
-		ctx.NewLine()
 		return nil
 	}
-	ctx.NewLine()
-	color.Infoln("git cleanup done")
-	ctx.NewLine()
+	color.Successln("git cleanup done")
 
 	// install dependencies
 	color.Default().Println("> @go mod tidy")
 	install := exec.Command("go", "mod", "tidy")
 	install.Dir = path
 	if err := install.Run(); err != nil {
-		ctx.NewLine()
 		color.Errorf("error while installing the dependecies : %s\n", err)
-		ctx.NewLine()
 		return nil
 	}
-	ctx.NewLine()
-	color.Infoln("goravel installed successfully!")
-	ctx.NewLine()
+	color.Successln("goravel installed successfully!")
 
 	// generate .env file
 	color.Default().Println("> @cp .env.example .env")
 	copyEnv := exec.Command("cp", ".env.example", ".env")
 	copyEnv.Dir = path
 	if err := copyEnv.Run(); err != nil {
-		ctx.NewLine()
 		color.Errorf("error while generating the .env file : %s\n", err)
-		ctx.NewLine()
 		return nil
 	}
-	ctx.NewLine()
-	color.Infoln(".env file generated successfully!")
-	ctx.NewLine()
+	color.Successln(".env file generated successfully!")
 
 	// generate app key
 	color.Default().Println("> @go run . artisan key:generate")
 	initAppKey := exec.Command("go", "run", ".", "artisan", "key:generate")
 	initAppKey.Dir = path
 	if err := initAppKey.Run(); err != nil {
-		ctx.NewLine()
 		color.Errorf("error while generating the app key : %s\n", err)
-		ctx.NewLine()
 		return nil
 	}
-	ctx.NewLine()
-	color.Infoln("App key generated successfully!")
-	ctx.NewLine()
-
-	color.Infoln("Application ready in [" + bold.Sprintf("%s", name) + "]. Build something amazing!")
-	ctx.NewLine()
-	color.Infoln("Are you new to Goravel? Please visit https://goravel.dev to get started.")
-	ctx.NewLine()
+	color.Successln("App key generated successfully!")
+	color.Successln("Application ready in [" + bold.Sprintf("%s", name) + "]. Build something amazing!")
+	color.Successln("Are you new to Goravel? Please visit https://goravel.dev to get started.")
 	return nil
 }
