@@ -105,55 +105,91 @@ func (receiver *NewCommand) generate(ctx console.Context, name string) error {
 
 	// clone the repository
 	clone := exec.Command("git", "clone", "https://github.com/goravel/goravel.git", path)
-	color.Successln("creating a \"goravel/goravel\" project at \"" + name + "\"")
-	if err := clone.Run(); err != nil {
+	err := ctx.Spinner("creating a \"goravel/goravel\" project at \""+name+"\"", console.SpinnerOption{
+		Action: func() {
+			if err := clone.Run(); err != nil {
+				color.Errorf("error while generating the project : %s\n", err.Error())
+				return
+			}
+		},
+	})
+	if err != nil {
 		color.Errorf("error while generating the project : %s\n", err.Error())
 		return nil
 	}
 	color.Successln("created project in " + path)
 
 	// git cleanup
-	color.Default().Println("> @rm -rf " + name + "/.git " + name + "/.github")
 	var removeFiles *exec.Cmd
 	if runtime.GOOS == "windows" {
 		removeFiles = exec.Command("Remove-Item", "-Path", path+"/.git", path+"/.github", "-Recursive", "-Force")
 	} else {
 		removeFiles = exec.Command("rm", "-rf", path+"/.git", path+"/.github")
 	}
-	if err := removeFiles.Run(); err != nil {
+	err = ctx.Spinner("> @rm -rf "+name+"/.git "+name+"/.github", console.SpinnerOption{
+		Action: func() {
+			if err := removeFiles.Run(); err != nil {
+				color.Errorf("error happend while removing the files : %s\n", err)
+				return
+			}
+		},
+	})
+	if err != nil {
 		color.Errorf("error happend while removing the files : %s\n", err)
 		return nil
 	}
 	color.Successln("git cleanup done")
 
 	// install dependencies
-	color.Default().Println("> @go mod tidy")
 	install := exec.Command("go", "mod", "tidy")
 	install.Dir = path
-	if err := install.Run(); err != nil {
+	err = ctx.Spinner("> @go mod tidy", console.SpinnerOption{
+		Action: func() {
+			if err := install.Run(); err != nil {
+				color.Errorf("error while installing the dependecies : %s\n", err)
+				return
+			}
+		},
+	})
+	if err != nil {
 		color.Errorf("error while installing the dependecies : %s\n", err)
 		return nil
 	}
 	color.Successln("goravel installed successfully!")
 
 	// generate .env file
-	color.Default().Println("> @cp .env.example .env")
 	copyEnv := exec.Command("cp", ".env.example", ".env")
 	copyEnv.Dir = path
-	if err := copyEnv.Run(); err != nil {
+	err = ctx.Spinner("> @cp .env.example .env", console.SpinnerOption{
+		Action: func() {
+			if err := copyEnv.Run(); err != nil {
+				color.Errorf("error while generating the .env file : %s\n", err)
+				return
+			}
+		},
+	})
+	if err != nil {
 		color.Errorf("error while generating the .env file : %s\n", err)
 		return nil
 	}
 	color.Successln(".env file generated successfully!")
 
 	// generate app key
-	color.Default().Println("> @go run . artisan key:generate")
 	initAppKey := exec.Command("go", "run", ".", "artisan", "key:generate")
 	initAppKey.Dir = path
-	if err := initAppKey.Run(); err != nil {
+	err = ctx.Spinner("> @go run . artisan key:generate", console.SpinnerOption{
+		Action: func() {
+			if err := initAppKey.Run(); err != nil {
+				color.Errorf("error while generating the app key : %s\n", err)
+				return
+			}
+		},
+	})
+	if err != nil {
 		color.Errorf("error while generating the app key : %s\n", err)
 		return nil
 	}
+
 	color.Successln("App key generated successfully!")
 	color.Successln("Application ready in [" + bold.Sprintf("%s", name) + "]. Build something amazing!")
 	color.Successln("Are you new to Goravel? Please visit https://goravel.dev to get started.")
