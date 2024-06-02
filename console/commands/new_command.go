@@ -2,6 +2,7 @@ package commands
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -44,7 +45,7 @@ func (receiver *NewCommand) Extend() command.Extend {
 
 // Handle Execute the console command.
 func (receiver *NewCommand) Handle(ctx console.Context) (err error) {
-	color.Cyan().Println(support.WelcomeHeading)
+	fmt.Println(pterm.NewRGB(142, 211, 249).Sprint(support.WelcomeHeading)) // color hex code: #8ED3F9
 	ctx.NewLine()
 	name := ctx.Argument(0)
 	if name == "" {
