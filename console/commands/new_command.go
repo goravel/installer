@@ -13,7 +13,7 @@ import (
 	"github.com/goravel/framework/support/color"
 	"github.com/pterm/pterm"
 
-	"github.com/goravel/installer/support"
+	"goravel/support"
 )
 
 type NewCommand struct {
@@ -106,11 +106,8 @@ func (receiver *NewCommand) generate(ctx console.Context, name string) error {
 	// clone the repository
 	clone := exec.Command("git", "clone", "https://github.com/goravel/goravel.git", path)
 	err := ctx.Spinner("Creating a \"goravel/goravel\" project at \""+name+"\"", console.SpinnerOption{
-		Action: func() {
-			if err := clone.Run(); err != nil {
-				color.Errorf("error while generating the project : %s\n", err.Error())
-				return
-			}
+		Action: func() error {
+			return clone.Run()
 		},
 	})
 	if err != nil {
@@ -127,11 +124,8 @@ func (receiver *NewCommand) generate(ctx console.Context, name string) error {
 		removeFiles = exec.Command("rm", "-rf", path+"/.git", path+"/.github")
 	}
 	err = ctx.Spinner("> @rm -rf "+name+"/.git "+name+"/.github", console.SpinnerOption{
-		Action: func() {
-			if err := removeFiles.Run(); err != nil {
-				color.Errorf("error happend while removing the files : %s\n", err)
-				return
-			}
+		Action: func() error {
+			return removeFiles.Run()
 		},
 	})
 	if err != nil {
@@ -144,11 +138,8 @@ func (receiver *NewCommand) generate(ctx console.Context, name string) error {
 	install := exec.Command("go", "mod", "tidy")
 	install.Dir = path
 	err = ctx.Spinner("> @go mod tidy", console.SpinnerOption{
-		Action: func() {
-			if err := install.Run(); err != nil {
-				color.Errorf("error while installing the dependecies : %s\n", err)
-				return
-			}
+		Action: func() error {
+			return install.Run()
 		},
 	})
 	if err != nil {
@@ -161,11 +152,8 @@ func (receiver *NewCommand) generate(ctx console.Context, name string) error {
 	copyEnv := exec.Command("cp", ".env.example", ".env")
 	copyEnv.Dir = path
 	err = ctx.Spinner("> @cp .env.example .env", console.SpinnerOption{
-		Action: func() {
-			if err := copyEnv.Run(); err != nil {
-				color.Errorf("error while generating the .env file : %s\n", err)
-				return
-			}
+		Action: func() error {
+			return copyEnv.Run()
 		},
 	})
 	if err != nil {
@@ -178,11 +166,8 @@ func (receiver *NewCommand) generate(ctx console.Context, name string) error {
 	initAppKey := exec.Command("go", "run", ".", "artisan", "key:generate")
 	initAppKey.Dir = path
 	err = ctx.Spinner("> @go run . artisan key:generate", console.SpinnerOption{
-		Action: func() {
-			if err := initAppKey.Run(); err != nil {
-				color.Errorf("error while generating the app key : %s\n", err)
-				return
-			}
+		Action: func() error {
+			return initAppKey.Run()
 		},
 	})
 	if err != nil {
