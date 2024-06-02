@@ -3,7 +3,7 @@ package console
 import (
 	"github.com/goravel/framework/contracts/console"
 
-	"goravel/console/commands"
+	"github.com/goravel/installer/console/commands"
 )
 
 type Kernel struct {

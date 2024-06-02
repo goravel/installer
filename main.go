@@ -5,8 +5,8 @@ import (
 
 	frameworkconsole "github.com/goravel/framework/console"
 
-	"goravel/console"
-	"goravel/support"
+	"github.com/goravel/installer/console"
+	"github.com/goravel/installer/support"
 )
 
 func main() {

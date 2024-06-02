@@ -1,4 +1,4 @@
-module goravel
+module github.com/goravel/installer
 
 go 1.21
 

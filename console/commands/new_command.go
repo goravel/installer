@@ -13,7 +13,7 @@ import (
 	"github.com/goravel/framework/support/color"
 	"github.com/pterm/pterm"
 
-	"goravel/support"
+	"github.com/goravel/installer/support"
 )
 
 type NewCommand struct {
