@@ -7,11 +7,11 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"runtime"
 
 	"github.com/goravel/framework/contracts/console"
 	"github.com/goravel/framework/contracts/console/command"
 	"github.com/goravel/framework/support/color"
+	"github.com/goravel/framework/support/file"
 	"github.com/pterm/pterm"
 
 	"github.com/goravel/installer/support"
@@ -118,15 +118,9 @@ func (receiver *NewCommand) generate(ctx console.Context, name string) error {
 	color.Successln("created project in " + path)
 
 	// git cleanup
-	var removeFiles *exec.Cmd
-	if runtime.GOOS == "windows" {
-		removeFiles = exec.Command("Remove-Item", "-Path", path+"/.git", path+"/.github", "-Recursive", "-Force")
-	} else {
-		removeFiles = exec.Command("rm", "-rf", path+"/.git", path+"/.github")
-	}
 	err = ctx.Spinner("> @rm -rf "+name+"/.git "+name+"/.github", console.SpinnerOption{
 		Action: func() error {
-			return removeFiles.Run()
+			return receiver.removeFiles(path)
 		},
 	})
 	if err != nil {
@@ -180,4 +174,14 @@ func (receiver *NewCommand) generate(ctx console.Context, name string) error {
 	color.Successln("Application ready in [" + bold.Sprintf("%s", name) + "]. Build something amazing!")
 	color.Successln("Are you new to Goravel? Please visit https://goravel.dev to get started.")
 	return nil
+}
+
+func (receiver *NewCommand) removeFiles(path string) error {
+	// Remove the .git directory
+	if err := file.Remove(filepath.Join(path, ".git")); err != nil {
+		return err
+	}
+
+	// Remove the .GitHub directory
+	return file.Remove(filepath.Join(path, ".github"))
 }
