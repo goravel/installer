@@ -2,6 +2,7 @@ package console
 
 import (
 	"github.com/goravel/framework/contracts/console"
+
 	"github.com/goravel/installer/console/commands"
 )
 

@@ -32,7 +32,7 @@ func TestNewCommand(t *testing.T) {
 	mockContext.On("Spinner", mock.Anything, mock.AnythingOfType("console.SpinnerOption")).Return(nil).
 		Run(func(args mock.Arguments) {
 			options := args.Get(1).(console.SpinnerOption)
-			options.Action()
+			assert.Nil(t, options.Action())
 		}).Times(5)
 	assert.Contains(t, color.CaptureOutput(func(w io.Writer) {
 		assert.Nil(t, newCommand.Handle(mockContext))

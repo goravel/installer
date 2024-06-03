@@ -14,12 +14,20 @@ Goravel Installer is a command-line tool that helps you to install the Goravel f
 
 | goravel/installer | goravel/framework |
 |-------------------|-------------------|
-| v1.1.x            | v1.13.x           |
+| v1.0.x            | v1.14.x           |
 
 ## Installation
 
 ```bash
-go install -u github.com/goravel/installer
+# Install the latest version of the goravel installer
+go install github.com/goravel/installer@latest
+
+# You can rename the executable file
+# Linux
+mv "$GOBIN/installer" "$GOBIN/goravel"
+
+# Windows
+move "%GOBIN%\installer.exe" "%GOBIN%\goravel.exe"
 ```
 
 ## Usage
