@@ -3,7 +3,7 @@ module github.com/goravel/installer
 go 1.21
 
 require (
-	github.com/goravel/framework v1.13.1-0.20240528023202-cd4d68c816fc
+	github.com/goravel/framework v1.13.1-0.20240602041957-23b1eff4deec
 	github.com/pterm/pterm v0.12.79
 	github.com/stretchr/testify v1.9.0
 )
