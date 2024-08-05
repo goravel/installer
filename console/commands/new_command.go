@@ -3,6 +3,7 @@ package commands
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -144,11 +145,11 @@ func (receiver *NewCommand) generate(ctx console.Context, name string) error {
 	color.Successln("Goravel installed successfully!")
 
 	// generate .env file
-	copyEnv := exec.Command("cp", ".env.example", ".env")
-	copyEnv.Dir = path
 	err = ctx.Spinner("> @cp .env.example .env", console.SpinnerOption{
 		Action: func() error {
-			return copyEnv.Run()
+			inputFilePath := filepath.Join(path, ".env.example")
+			outputFilePath := filepath.Join(path, ".env")
+			return receiver.copyFile(inputFilePath, outputFilePath)
 		},
 	})
 	if err != nil {
@@ -184,4 +185,43 @@ func (receiver *NewCommand) removeFiles(path string) error {
 
 	// Remove the .GitHub directory
 	return file.Remove(filepath.Join(path, ".github"))
+}
+
+func (receiver *NewCommand) copyFile(inputFilePath, outputFilePath string) (err error) {
+	// Open .env.example file
+	in, err := os.Open(inputFilePath)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if cerr := in.Close(); cerr != nil {
+			if err == nil {
+				err = cerr
+			} else {
+				fmt.Printf("Error closing input file: %v\n", cerr)
+			}
+		}
+	}()
+
+	// Create .env file
+	out, err := os.Create(outputFilePath)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if cerr := out.Close(); cerr != nil {
+			if err == nil {
+				err = cerr
+			} else {
+				fmt.Printf("Error closing output file: %v\n", cerr)
+			}
+		}
+	}()
+
+	// Copy .env.example to .env file
+	if _, err = io.Copy(out, in); err != nil {
+		return err
+	}
+
+	return nil
 }
