@@ -3,6 +3,7 @@ package commands
 import (
 	"errors"
 	"io"
+	"path/filepath"
 	"testing"
 
 	"github.com/goravel/framework/contracts/console"
@@ -46,6 +47,12 @@ func TestNewCommand(t *testing.T) {
 	assert.Contains(t, captureOutput, ".env file generated successfully!")
 	assert.Contains(t, captureOutput, "App key generated successfully!")
 	assert.True(t, file.Exists("example-app"))
+
+	// Test copyFile
+	src := filepath.Join("example-app", ".env.example")
+	dst := filepath.Join("example-app", ".env")
+	assert.Nil(t, newCommand.copyFile(src, dst))
+	assert.True(t, file.Exists(dst))
 
 	mockContext.On("Argument", 0).Return("example-app").Once()
 	mockContext.On("OptionBool", "force").Return(false).Once()
