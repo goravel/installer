@@ -193,35 +193,16 @@ func (receiver *NewCommand) copyFile(inputFilePath, outputFilePath string) (err 
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if cerr := in.Close(); cerr != nil {
-			if err == nil {
-				err = cerr
-			} else {
-				fmt.Printf("Error closing input file: %v\n", cerr)
-			}
-		}
-	}()
+	defer in.Close()
 
 	// Create .env file
 	out, err := os.Create(outputFilePath)
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if cerr := out.Close(); cerr != nil {
-			if err == nil {
-				err = cerr
-			} else {
-				fmt.Printf("Error closing output file: %v\n", cerr)
-			}
-		}
-	}()
+	defer out.Close()
 
 	// Copy .env.example to .env file
-	if _, err = io.Copy(out, in); err != nil {
-		return err
-	}
-
-	return nil
+	_, err = io.Copy(out, in)
+	return err
 }
