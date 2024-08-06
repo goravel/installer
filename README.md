@@ -23,7 +23,7 @@ Goravel Installer is a command-line tool that helps you to install the Goravel f
 go install github.com/goravel/installer@latest
 
 # You can rename the executable file
-# Linux
+# Linux / MacOS
 mv "$GOBIN/installer" "$GOBIN/goravel"
 
 # Windows
