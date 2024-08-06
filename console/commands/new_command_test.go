@@ -3,6 +3,7 @@ package commands
 import (
 	"errors"
 	"io"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -47,12 +48,7 @@ func TestNewCommand(t *testing.T) {
 	assert.Contains(t, captureOutput, ".env file generated successfully!")
 	assert.Contains(t, captureOutput, "App key generated successfully!")
 	assert.True(t, file.Exists("example-app"))
-
-	// Test copyFile
-	src := filepath.Join("example-app", ".env.example")
-	dst := filepath.Join("example-app", ".env")
-	assert.Nil(t, newCommand.copyFile(src, dst))
-	assert.True(t, file.Exists(dst))
+	assert.True(t, file.Exists(filepath.Join("example-app", ".env")))
 
 	mockContext.On("Argument", 0).Return("example-app").Once()
 	mockContext.On("OptionBool", "force").Return(false).Once()
@@ -62,4 +58,21 @@ func TestNewCommand(t *testing.T) {
 
 	assert.Nil(t, file.Remove("example-app"))
 	mockContext.AssertExpectations(t)
+}
+
+func TestCopyFile(t *testing.T) {
+	newCommand := &NewCommand{}
+
+	tmpDir, err := os.MkdirTemp("", "test-copy-file")
+	assert.Nil(t, err)
+	src := filepath.Join(tmpDir, ".env.example")
+	dst := filepath.Join(tmpDir, ".env")
+
+	// Create a mock .env.example file for testing
+	err = os.WriteFile(src, []byte("example env"), os.ModePerm)
+	assert.Nil(t, err)
+	assert.True(t, file.Exists(src))
+	assert.Nil(t, newCommand.copyFile(src, dst))
+	assert.True(t, file.Exists(dst))
+	assert.Nil(t, os.Remove(dst))
 }
