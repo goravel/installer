@@ -74,5 +74,6 @@ func TestCopyFile(t *testing.T) {
 	assert.True(t, file.Exists(src))
 	assert.Nil(t, newCommand.copyFile(src, dst))
 	assert.True(t, file.Exists(dst))
+	assert.Nil(t, os.Remove(src))
 	assert.Nil(t, os.Remove(dst))
 }
