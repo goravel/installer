@@ -46,7 +46,7 @@ func (receiver *NewCommand) Extend() command.Extend {
 
 // Handle Execute the console command.
 func (receiver *NewCommand) Handle(ctx console.Context) (err error) {
-	fmt.Println(pterm.NewRGB(142, 211, 249).Sprint(support.WelcomeHeading)) // color hex code: #8ED3F9
+	fmt.Println(pterm.NewRGB(52, 124, 153).Sprint(support.WelcomeHeading)) // color hex code: #8ED3F9
 	ctx.NewLine()
 	name := ctx.Argument(0)
 	if name == "" {
