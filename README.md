@@ -28,6 +28,8 @@ mv "$GOBIN/installer" "$GOBIN/goravel"
 
 # Windows
 move "%GOBIN%\installer.exe" "%GOBIN%\goravel.exe"
+# Windows Powershell
+move "$Env:gopath\bin\installer.exe" "$Env:gopath\bin\goravel.exe"
 ```
 
 ## Usage
