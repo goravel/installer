@@ -10,8 +10,8 @@ import (
 )
 
 func main() {
-	name := "Goravel Installer"
-	usage := "A command-line tool to create Goravel projects."
+	name := "goravel"
+	usage := "Goravel Installer"
 	usageText := "goravel [global options] command [command options] [arguments...]"
 
 	cliApp := frameworkconsole.NewApplication(name, usage, usageText, support.Version, false)
