@@ -4,6 +4,7 @@ import (
 	"os"
 
 	frameworkconsole "github.com/goravel/framework/console"
+	"github.com/goravel/framework/support/color"
 
 	"github.com/goravel/installer/console"
 	"github.com/goravel/installer/support"
@@ -19,5 +20,7 @@ func main() {
 	kernel := &console.Kernel{}
 
 	cliApp.Register(kernel.Commands())
-	cliApp.Run(os.Args, false)
+	if err := cliApp.Run(os.Args, false); err != nil {
+		color.Red().Println(err)
+	}
 }
