@@ -5,7 +5,7 @@ go 1.22.7
 toolchain go1.23.3
 
 require (
-	github.com/goravel/framework v1.15.2
+	github.com/goravel/framework v1.15.3
 	github.com/pterm/pterm v0.12.80
 	github.com/stretchr/testify v1.10.0
 )
