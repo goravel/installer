@@ -2,7 +2,7 @@ module github.com/goravel/installer
 
 go 1.22.7
 
-toolchain go1.23.3
+toolchain go1.23.4
 
 require (
 	github.com/goravel/framework v1.15.4
