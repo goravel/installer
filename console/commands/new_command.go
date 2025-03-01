@@ -59,7 +59,7 @@ func (receiver *NewCommand) Handle(ctx console.Context) (err error) {
 				}
 
 				if !regexp.MustCompile(`^[\w.-]+$`).MatchString(value) {
-					return errors.New("the name may only contain letters, numbers, dashes, underscores, and periods")
+					return errors.New("the name only supports letters, numbers, dashes, underscores, and periods")
 				}
 
 				return nil
@@ -101,7 +101,7 @@ func (receiver *NewCommand) generate(ctx console.Context, name string) error {
 
 	// remove the directory if it already exists
 	if err := os.RemoveAll(path); err != nil {
-		color.Errorf("error while removing the directory : %s\n", err.Error())
+		color.Errorf("failed to remove the directory: %s\n", err.Error())
 		return nil
 	}
 
@@ -113,7 +113,7 @@ func (receiver *NewCommand) generate(ctx console.Context, name string) error {
 		},
 	})
 	if err != nil {
-		color.Errorf("error while generating the project : %s\n", err.Error())
+		color.Errorf("failed to clone goravel, please check your internet connection: %s\n", err.Error())
 		return nil
 	}
 	color.Successln("created project in " + path)
@@ -125,7 +125,7 @@ func (receiver *NewCommand) generate(ctx console.Context, name string) error {
 		},
 	})
 	if err != nil {
-		color.Errorf("error happend while removing the files : %s\n", err)
+		color.Errorf("failed to remove .git and .github folders: %s\n", err)
 		return nil
 	}
 	color.Successln("git cleanup done")
@@ -139,7 +139,7 @@ func (receiver *NewCommand) generate(ctx console.Context, name string) error {
 		},
 	})
 	if err != nil {
-		color.Errorf("error while installing the dependecies : %s\n", err)
+		color.Errorf("failed to install dependecies: %s\n", err)
 		return nil
 	}
 	color.Successln("Goravel installed successfully!")
@@ -153,7 +153,7 @@ func (receiver *NewCommand) generate(ctx console.Context, name string) error {
 		},
 	})
 	if err != nil {
-		color.Errorf("error while generating the .env file : %s\n", err)
+		color.Errorf("failed to generate .env file: %s\n", err)
 		return nil
 	}
 	color.Successln(".env file generated successfully!")
@@ -167,7 +167,7 @@ func (receiver *NewCommand) generate(ctx console.Context, name string) error {
 		},
 	})
 	if err != nil {
-		color.Errorf("error while generating the app key : %s\n", err)
+		color.Errorf("failed to generate app key : %s\n", err)
 		return nil
 	}
 
