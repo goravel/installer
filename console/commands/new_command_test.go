@@ -28,20 +28,21 @@ func TestNewCommand(t *testing.T) {
 	})
 
 	mockContext := &consolemocks.Context{}
-	mockContext.On("Argument", 0).Return("").Once()
-	mockContext.On("Ask", "What is the name of your project?", mock.Anything).Return("", errors.New("the project name is required")).Once()
-	mockContext.On("NewLine").Return()
-	mockContext.On("Spinner", mock.Anything, mock.AnythingOfType("console.SpinnerOption")).Return(nil).
-		Run(func(args mock.Arguments) {
-			options := args.Get(1).(console.SpinnerOption)
+	mockContext.EXPECT().Argument(0).Return("").Once()
+	mockContext.EXPECT().Ask("What is the name of your project?", mock.Anything).Return("", errors.New("the project name is required")).Once()
+	mockContext.EXPECT().NewLine().Return()
+	mockContext.EXPECT().Spinner(mock.Anything, mock.AnythingOfType("console.SpinnerOption")).Return(nil).
+		Run(func(message string, options console.SpinnerOption) {
 			assert.Nil(t, options.Action())
-		}).Times(5)
+		}).Times(6)
 	assert.Contains(t, color.CaptureOutput(func(w io.Writer) {
 		assert.Nil(t, newCommand.Handle(mockContext))
 	}), "the project name is required")
 
-	mockContext.On("Argument", 0).Return("example-app").Once()
-	mockContext.On("OptionBool", "force").Return(true).Once()
+	mockContext.EXPECT().Argument(0).Return("example-app").Once()
+	mockContext.EXPECT().OptionBool("force").Return(true).Once()
+	mockContext.EXPECT().Option("module").Return("").Once()
+	mockContext.EXPECT().Ask("What is the module name?", mock.Anything).Return("github.com/example/", nil).Once()
 	captureOutput := color.CaptureOutput(func(w io.Writer) {
 		assert.Nil(t, newCommand.Handle(mockContext))
 	})
@@ -50,8 +51,8 @@ func TestNewCommand(t *testing.T) {
 	assert.True(t, file.Exists("example-app"))
 	assert.True(t, file.Exists(filepath.Join("example-app", ".env")))
 
-	mockContext.On("Argument", 0).Return("example-app").Once()
-	mockContext.On("OptionBool", "force").Return(false).Once()
+	mockContext.EXPECT().Argument(0).Return("example-app").Once()
+	mockContext.EXPECT().OptionBool("force").Return(false).Once()
 	assert.Contains(t, color.CaptureOutput(func(w io.Writer) {
 		assert.Nil(t, newCommand.Handle(mockContext))
 	}), "the directory already exists. use the --force flag to overwrite")

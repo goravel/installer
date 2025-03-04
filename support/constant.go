@@ -8,3 +8,5 @@ const WelcomeHeading = `
  | (_ || (_) ||   / / _ \\ V / | _| | |__ 
   \___| \___/ |_|_\/_/ \_\\_/  |___||____|
   `
+
+const DefaultModuleName = "goravel"
