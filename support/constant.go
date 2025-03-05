@@ -1,6 +1,6 @@
 package support
 
-const Version string = "v1.2.0"
+const Version string = "v1.1.2"
 
 const WelcomeHeading = `
    ___   ___   ___    _ __   __ ___  _    

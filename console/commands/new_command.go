@@ -95,8 +95,8 @@ func (r *NewCommand) Handle(ctx console.Context) (err error) {
 					return errors.New("module name is required")
 				}
 
-				if !regexp.MustCompile(`^[a-zA-Z0-9./-]+$`).MatchString(value) {
-					return errors.New("invalid module name format. Use only letters, numbers, dots (.), slashes (/), and hyphens (-). Example: github.com/yourusername/yourproject")
+				if !regexp.MustCompile(`^[a-zA-Z0-9./_-]+$`).MatchString(value) {
+					return errors.New("invalid module name format. Use only letters, numbers, dots (.), slashes (/), underscores (_), and hyphens (-). Example: [github.com/yourusername/yourproject] or [yourproject]")
 				}
 
 				return nil
