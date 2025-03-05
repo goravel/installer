@@ -243,7 +243,7 @@ func (r *NewCommand) replaceModule(path, module string) error {
 		scanner := bufio.NewScanner(fileContent)
 		for scanner.Scan() {
 			line := scanner.Text()
-			newLine := line
+			var newLine string
 
 			if strings.HasSuffix(filePath, ".mod") {
 				newLine = reModule.ReplaceAllString(line, "module "+module)
