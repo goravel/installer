@@ -87,16 +87,16 @@ func (r *NewCommand) Handle(ctx console.Context) (err error) {
 	module := ctx.Option("module")
 	if module == "" {
 		module, err = ctx.Ask("What is the module name?", console.AskOption{
-			Placeholder: "E.g github.com/yourusername/yourproject",
+			Placeholder: "E.g. github.com/yourusername/yourproject",
 			Default:     support.DefaultModuleName,
 			Prompt:      ">",
 			Validate: func(value string) error {
 				if value == "" {
-					return errors.New("the module name is required")
+					return errors.New("module name is required")
 				}
 
 				if !regexp.MustCompile(`^[a-zA-Z0-9./-]+$`).MatchString(value) {
-					return errors.New("invalid module name format")
+					return errors.New("invalid module name format. Use only letters, numbers, dots (.), slashes (/), and hyphens (-). Example: github.com/yourusername/yourproject")
 				}
 
 				return nil

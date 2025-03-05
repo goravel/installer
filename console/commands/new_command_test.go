@@ -7,13 +7,14 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+
 	"github.com/goravel/framework/contracts/console"
 	"github.com/goravel/framework/contracts/console/command"
 	consolemocks "github.com/goravel/framework/mocks/console"
 	"github.com/goravel/framework/support/color"
 	"github.com/goravel/framework/support/file"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 )
 
 func TestNewCommand(t *testing.T) {
@@ -77,4 +78,47 @@ func TestCopyFile(t *testing.T) {
 	assert.True(t, file.Exists(dst))
 	assert.Nil(t, os.Remove(src))
 	assert.Nil(t, os.Remove(dst))
+}
+
+func TestReplaceModule(t *testing.T) {
+	newCommand := &NewCommand{}
+
+	tmpDir, err := os.MkdirTemp("", "test-replace-module")
+	assert.Nil(t, err)
+	defer os.RemoveAll(tmpDir)
+
+	goFile := filepath.Join(tmpDir, "main.go")
+	modFile := filepath.Join(tmpDir, "go.mod")
+	invalidFile := filepath.Join(tmpDir, "ignore.txt")
+
+	newModule := "github.com/example/project"
+
+	// Write content to files
+	err = os.WriteFile(goFile, []byte(`package main
+import "goravel/utils"
+func main() {}`), os.ModePerm)
+	assert.Nil(t, err)
+
+	err = os.WriteFile(modFile, []byte("module goravel\nrequire example.com v1.0.0"), os.ModePerm)
+	assert.Nil(t, err)
+
+	err = os.WriteFile(invalidFile, []byte("This is a test file."), os.ModePerm)
+	assert.Nil(t, err)
+
+	err = newCommand.replaceModule(tmpDir, newModule)
+	assert.Nil(t, err)
+
+	modContent, err := os.ReadFile(modFile)
+	assert.Nil(t, err)
+	assert.Contains(t, string(modContent), "module github.com/example/project")
+	assert.NotContains(t, string(modContent), "module goravel")
+
+	goContent, err := os.ReadFile(goFile)
+	assert.Nil(t, err)
+	assert.Contains(t, string(goContent), "import \"github.com/example/project/utils\"")
+	assert.NotContains(t, string(goContent), "import \"goravel/utils\"")
+
+	invalidContent, err := os.ReadFile(invalidFile)
+	assert.Nil(t, err)
+	assert.Equal(t, "This is a test file.", string(invalidContent))
 }
