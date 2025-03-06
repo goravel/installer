@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"io"
@@ -8,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strings"
 
 	"github.com/goravel/framework/contracts/console"
 	"github.com/goravel/framework/contracts/console/command"
@@ -22,17 +24,17 @@ type NewCommand struct {
 }
 
 // Signature The name and signature of the console command.
-func (receiver *NewCommand) Signature() string {
+func (r *NewCommand) Signature() string {
 	return "new"
 }
 
 // Description The console command description.
-func (receiver *NewCommand) Description() string {
+func (r *NewCommand) Description() string {
 	return "Create a new Goravel application"
 }
 
 // Extend The console command extend.
-func (receiver *NewCommand) Extend() command.Extend {
+func (r *NewCommand) Extend() command.Extend {
 	return command.Extend{
 		Flags: []command.Flag{
 			&command.BoolFlag{
@@ -40,12 +42,17 @@ func (receiver *NewCommand) Extend() command.Extend {
 				Aliases: []string{"f"},
 				Usage:   "Forces install even if the directory already exists",
 			},
+			&command.StringFlag{
+				Name:    "module",
+				Aliases: []string{"m"},
+				Usage:   "Specify the custom module name to replace the default 'goravel' module",
+			},
 		},
 	}
 }
 
 // Handle Execute the console command.
-func (receiver *NewCommand) Handle(ctx console.Context) (err error) {
+func (r *NewCommand) Handle(ctx console.Context) (err error) {
 	fmt.Println(pterm.NewRGB(52, 124, 153).Sprint(support.WelcomeHeading)) // color hex code: #8ED3F9
 	ctx.NewLine()
 	name := ctx.Argument(0)
@@ -72,30 +79,54 @@ func (receiver *NewCommand) Handle(ctx console.Context) (err error) {
 	}
 
 	force := ctx.OptionBool("force")
-	if !force && receiver.verifyIfDirectoryExists(receiver.getPath(name)) {
+	if !force && r.verifyIfDirectoryExists(r.getPath(name)) {
 		color.Errorln("the directory already exists. use the --force flag to overwrite")
 		return nil
 	}
 
-	return receiver.generate(ctx, name)
+	module := ctx.Option("module")
+	if module == "" {
+		module, err = ctx.Ask("What is the module name?", console.AskOption{
+			Placeholder: "E.g. github.com/yourusername/yourproject",
+			Default:     support.DefaultModuleName,
+			Prompt:      ">",
+			Validate: func(value string) error {
+				if value == "" {
+					return errors.New("module name is required")
+				}
+
+				if !regexp.MustCompile(`^[a-zA-Z0-9./_-]+$`).MatchString(value) {
+					return errors.New("invalid module name format. Use only letters, numbers, dots (.), slashes (/), underscores (_), and hyphens (-). Example: [github.com/yourusername/yourproject] or [yourproject]")
+				}
+
+				return nil
+			},
+		})
+		if err != nil {
+			color.Errorln(err.Error())
+			return nil
+		}
+	}
+
+	return r.generate(ctx, name, module)
 }
 
 // verifyIfDirectoryExists Verify if the directory already exists.
-func (receiver *NewCommand) verifyIfDirectoryExists(path string) bool {
+func (r *NewCommand) verifyIfDirectoryExists(path string) bool {
 	_, err := os.Stat(path)
 	return !os.IsNotExist(err)
 }
 
 // getPath Get the full path to the command.
-func (receiver *NewCommand) getPath(name string) string {
+func (r *NewCommand) getPath(name string) string {
 	pwd, _ := os.Getwd()
 
 	return filepath.Clean(filepath.Join(pwd, name))
 }
 
 // generate Generate the project.
-func (receiver *NewCommand) generate(ctx console.Context, name string) error {
-	path := receiver.getPath(name)
+func (r *NewCommand) generate(ctx console.Context, name string, module string) error {
+	path := r.getPath(name)
 	name = filepath.Clean(name)
 	bold := pterm.NewStyle(pterm.Bold)
 
@@ -121,7 +152,7 @@ func (receiver *NewCommand) generate(ctx console.Context, name string) error {
 	// git cleanup
 	err = ctx.Spinner("> @rm -rf "+name+"/.git "+name+"/.github", console.SpinnerOption{
 		Action: func() error {
-			return receiver.removeFiles(path)
+			return r.removeFiles(path)
 		},
 	})
 	if err != nil {
@@ -129,6 +160,20 @@ func (receiver *NewCommand) generate(ctx console.Context, name string) error {
 		return nil
 	}
 	color.Successln("git cleanup done")
+
+	// Replace the module name if it's different from the default
+	if module != support.DefaultModuleName {
+		err = ctx.Spinner("Updating module name to \""+module+"\"", console.SpinnerOption{
+			Action: func() error {
+				return r.replaceModule(path, module)
+			},
+		})
+		if err != nil {
+			color.Errorf("Failed to update module name: %s\n", err)
+			return nil
+		}
+		color.Successln("Module name updated successfully!")
+	}
 
 	// install dependencies
 	install := exec.Command("go", "mod", "tidy")
@@ -149,7 +194,7 @@ func (receiver *NewCommand) generate(ctx console.Context, name string) error {
 		Action: func() error {
 			inputFilePath := filepath.Join(path, ".env.example")
 			outputFilePath := filepath.Join(path, ".env")
-			return receiver.copyFile(inputFilePath, outputFilePath)
+			return r.copyFile(inputFilePath, outputFilePath)
 		},
 	})
 	if err != nil {
@@ -177,7 +222,53 @@ func (receiver *NewCommand) generate(ctx console.Context, name string) error {
 	return nil
 }
 
-func (receiver *NewCommand) removeFiles(path string) error {
+func (r *NewCommand) replaceModule(path, module string) error {
+	module = strings.Trim(module, "/")
+	reModule := regexp.MustCompile(`^module\s+goravel\b`)
+	reImport := regexp.MustCompile(`"goravel/([^"]+)"`)
+
+	return filepath.Walk(path, func(filePath string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() || (!strings.HasSuffix(filePath, ".go") && !strings.HasSuffix(filePath, ".mod")) {
+			return err
+		}
+
+		fileContent, err := os.Open(filePath)
+		if err != nil {
+			return fmt.Errorf("error opening %s: %w", filePath, err)
+		}
+		defer fileContent.Close()
+
+		var newContent strings.Builder
+		var modified bool
+		scanner := bufio.NewScanner(fileContent)
+		for scanner.Scan() {
+			line := scanner.Text()
+			var newLine string
+
+			if strings.HasSuffix(filePath, ".mod") {
+				newLine = reModule.ReplaceAllString(line, "module "+module)
+			} else {
+				newLine = reImport.ReplaceAllString(line, `"`+module+`/$1"`)
+			}
+
+			if newLine != line {
+				modified = true
+			}
+			newContent.WriteString(newLine + "\n")
+		}
+
+		if err := scanner.Err(); err != nil {
+			return fmt.Errorf("error reading %s: %w", filePath, err)
+		}
+
+		if modified {
+			return os.WriteFile(filePath, []byte(newContent.String()), 0644)
+		}
+		return nil
+	})
+}
+
+func (r *NewCommand) removeFiles(path string) error {
 	// Remove the .git directory
 	if err := file.Remove(filepath.Join(path, ".git")); err != nil {
 		return err
@@ -187,7 +278,7 @@ func (receiver *NewCommand) removeFiles(path string) error {
 	return file.Remove(filepath.Join(path, ".github"))
 }
 
-func (receiver *NewCommand) copyFile(inputFilePath, outputFilePath string) (err error) {
+func (r *NewCommand) copyFile(inputFilePath, outputFilePath string) (err error) {
 	// Open .env.example file
 	in, err := os.Open(inputFilePath)
 	if err != nil {
