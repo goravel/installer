@@ -137,7 +137,7 @@ func (r *NewCommand) generate(ctx console.Context, name string, module string) e
 	}
 
 	// clone the repository
-	clone := exec.Command("git", "clone", "https://github.com/goravel/goravel.git", path)
+	clone := exec.Command("git", "clone", "--depth=1", "https://github.com/goravel/goravel.git", path)
 	err := ctx.Spinner("Creating a \"goravel/goravel\" project at \""+name+"\"", console.SpinnerOption{
 		Action: func() error {
 			return clone.Run()
