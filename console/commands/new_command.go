@@ -203,6 +203,16 @@ func (r *NewCommand) generate(ctx console.Context, name string, module string) e
 	}
 	color.Successln(".env file generated successfully!")
 
+	// set execute permission
+	if artisan := filepath.Join(path, "artisan"); file.Exists(artisan) {
+		err = os.Chmod(artisan, 0755)
+		if err != nil {
+			color.Errorf("failed to set artisan execute permission: %s\n", err)
+		} else {
+			color.Successln("artisan execute permission set successfully!")
+		}
+	}
+
 	// generate app key
 	initAppKey := exec.Command("go", "run", ".", "artisan", "key:generate")
 	initAppKey.Dir = path
