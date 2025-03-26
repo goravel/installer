@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/goravel/framework/support/env"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
@@ -51,6 +52,13 @@ func TestNewCommand(t *testing.T) {
 	assert.Contains(t, captureOutput, "App key generated successfully!")
 	assert.True(t, file.Exists("example-app"))
 	assert.True(t, file.Exists(filepath.Join("example-app", ".env")))
+
+	if !env.IsWindows() {
+		artisan := filepath.Join("example-app", "artisan")
+		info, err := os.Stat(artisan)
+		assert.Nil(t, err)
+		assert.Equal(t, info.Mode().Perm(), os.FileMode(0755))
+	}
 
 	mockContext.EXPECT().Argument(0).Return("example-app").Once()
 	mockContext.EXPECT().OptionBool("force").Return(false).Once()
