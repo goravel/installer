@@ -30,6 +30,15 @@ go install github.com/goravel/installer/goravel@latest
 goravel new blog
 ```
 
+## Upgrade
+
+```bash
+goravel upgrade
+
+// Specific a version
+goravel upgrade v1.1.1
+```
+
 ## License
 
 Goravel Installer is open-source software licensed under the [MIT license](https://opensource.org/licenses/MIT).
