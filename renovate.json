@@ -1,12 +1,17 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:base"
+    "config:recommended"
   ],
   "labels": [
     "🤖 Dependencies"
   ],
-  "commitMessagePrefix": "chore(deps): ",
+  "commitMessagePrefix": "chore: ",
+  "lockFileMaintenance": {
+    "enabled": true,
+    "automerge": true
+  },
+  "platformAutomerge": true,
   "schedule": [
     "* 0-3 * * 1"
   ],
