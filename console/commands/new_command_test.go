@@ -29,7 +29,7 @@ func TestNewCommand(t *testing.T) {
 		Usage:   "Forces install even if the directory already exists",
 	})
 
-	mockContext := &consolemocks.Context{}
+	mockContext := consolemocks.NewContext(t)
 	mockContext.EXPECT().Argument(0).Return("").Once()
 	mockContext.EXPECT().Ask("What is the name of your project?", mock.Anything).Return("", errors.New("the project name is required")).Once()
 	mockContext.EXPECT().NewLine().Return()
@@ -40,6 +40,34 @@ func TestNewCommand(t *testing.T) {
 	assert.Contains(t, color.CaptureOutput(func(w io.Writer) {
 		assert.Nil(t, newCommand.Handle(mockContext))
 	}), "the project name is required")
+
+	mockContext.EXPECT().Argument(0).Return("").Once()
+	mockContext.EXPECT().Ask("What is the name of your project?", mock.Anything).Return("invalid:name", nil).Once()
+	mockContext.EXPECT().NewLine().Return()
+	assert.Contains(t, color.CaptureOutput(func(w io.Writer) {
+		assert.Nil(t, newCommand.Handle(mockContext))
+	}), "the name only supports letters, numbers, dashes, underscores, and periods")
+
+	mockContext.EXPECT().Argument(0).Return("invalid:name").Once()
+	mockContext.EXPECT().NewLine().Return()
+	assert.Contains(t, color.CaptureOutput(func(w io.Writer) {
+		assert.Nil(t, newCommand.Handle(mockContext))
+	}), "the name only supports letters, numbers, dashes, underscores, and periods")
+
+	mockContext.EXPECT().Argument(0).Return("example-app").Once()
+	mockContext.EXPECT().OptionBool("force").Return(true).Once()
+	mockContext.EXPECT().Option("module").Return("").Once()
+	mockContext.EXPECT().Ask("What is the module name?", mock.Anything).Return("invalid:module", nil).Once()
+	assert.Contains(t, color.CaptureOutput(func(w io.Writer) {
+		assert.Nil(t, newCommand.Handle(mockContext))
+	}), "invalid module name format. Use only letters, numbers, dots (.), slashes (/), underscores (_), and hyphens (-). Example: [github.com/yourusername/yourproject] or [yourproject]")
+
+	mockContext.EXPECT().Argument(0).Return("example-app").Once()
+	mockContext.EXPECT().OptionBool("force").Return(true).Once()
+	mockContext.EXPECT().Option("module").Return("invalid:module").Once()
+	assert.Contains(t, color.CaptureOutput(func(w io.Writer) {
+		assert.Nil(t, newCommand.Handle(mockContext))
+	}), "invalid module name format. Use only letters, numbers, dots (.), slashes (/), underscores (_), and hyphens (-). Example: [github.com/yourusername/yourproject] or [yourproject]")
 
 	mockContext.EXPECT().Argument(0).Return("example-app").Once()
 	mockContext.EXPECT().OptionBool("force").Return(true).Once()
