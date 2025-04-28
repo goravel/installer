@@ -59,14 +59,10 @@ func (r *NewCommand) Handle(ctx console.Context) (err error) {
 	if name == "" {
 		name, err = ctx.Ask("What is the name of your project?", console.AskOption{
 			Placeholder: "E.g example-app",
-			Prompt:      ">",
+			Prompt:      "> ",
 			Validate: func(value string) error {
 				if value == "" {
 					return errors.New("the project name is required")
-				}
-
-				if !regexp.MustCompile(`^[\w.-]+$`).MatchString(value) {
-					return errors.New("the name only supports letters, numbers, dashes, underscores, and periods")
 				}
 
 				return nil
@@ -76,6 +72,11 @@ func (r *NewCommand) Handle(ctx console.Context) (err error) {
 			color.Errorln(err.Error())
 			return nil
 		}
+	}
+
+	if !regexp.MustCompile(`^[\w.-]+$`).MatchString(name) {
+		color.Errorln("the name only supports letters, numbers, dashes, underscores, and periods")
+		return nil
 	}
 
 	force := ctx.OptionBool("force")
@@ -89,14 +90,10 @@ func (r *NewCommand) Handle(ctx console.Context) (err error) {
 		module, err = ctx.Ask("What is the module name?", console.AskOption{
 			Placeholder: "E.g. github.com/yourusername/yourproject",
 			Default:     support.DefaultModuleName,
-			Prompt:      ">",
+			Prompt:      "> ",
 			Validate: func(value string) error {
 				if value == "" {
 					return errors.New("module name is required")
-				}
-
-				if !regexp.MustCompile(`^[a-zA-Z0-9./_-]+$`).MatchString(value) {
-					return errors.New("invalid module name format. Use only letters, numbers, dots (.), slashes (/), underscores (_), and hyphens (-). Example: [github.com/yourusername/yourproject] or [yourproject]")
 				}
 
 				return nil
@@ -106,6 +103,10 @@ func (r *NewCommand) Handle(ctx console.Context) (err error) {
 			color.Errorln(err.Error())
 			return nil
 		}
+	}
+	if !regexp.MustCompile(`^[a-zA-Z0-9./_-]+$`).MatchString(module) {
+		color.Errorln("invalid module name format. Use only letters, numbers, dots (.), slashes (/), underscores (_), and hyphens (-). Example: [github.com/yourusername/yourproject] or [yourproject]")
+		return nil
 	}
 
 	return r.generate(ctx, name, module)
@@ -124,7 +125,7 @@ func (r *NewCommand) getPath(name string) string {
 	return filepath.Clean(filepath.Join(pwd, name))
 }
 
-// generate Generate the project.
+// generate the project.
 func (r *NewCommand) generate(ctx console.Context, name string, module string) error {
 	path := r.getPath(name)
 	name = filepath.Clean(name)
