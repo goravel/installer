@@ -35,11 +35,12 @@ func (r *UpgradeCommand) Extend() command.Extend {
 // Handle Execute the console command.
 func (r *UpgradeCommand) Handle(ctx console.Context) error {
 	pkg := support.InstallerModuleName
-	if version := ctx.Argument(0); version != "" {
-		pkg = pkg + "@" + version
+	version := ctx.Argument(0)
+	if version == "" {
+		version = "latest"
 	}
 
-	upgrade := exec.Command("go", "install", pkg)
+	upgrade := exec.Command("go", "install", pkg+"@"+version)
 	if err := ctx.Spinner(fmt.Sprintf("> @%s", strings.Join(upgrade.Args, " ")), console.SpinnerOption{
 		Action: func() error {
 			output, err := upgrade.CombinedOutput()
