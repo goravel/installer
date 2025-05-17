@@ -7,15 +7,14 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/goravel/framework/support/env"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-
 	"github.com/goravel/framework/contracts/console"
 	"github.com/goravel/framework/contracts/console/command"
 	consolemocks "github.com/goravel/framework/mocks/console"
 	"github.com/goravel/framework/support/color"
+	"github.com/goravel/framework/support/env"
 	"github.com/goravel/framework/support/file"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 func TestNewCommand(t *testing.T) {
@@ -23,20 +22,17 @@ func TestNewCommand(t *testing.T) {
 
 	assert.Equal(t, newCommand.Signature(), "new")
 	assert.Equal(t, newCommand.Description(), "Create a new Goravel application")
-	assert.Equal(t, newCommand.Extend().Flags[0], &command.BoolFlag{
-		Name:    "force",
-		Aliases: []string{"f"},
-		Usage:   "Forces install even if the directory already exists",
+	assert.Contains(t, newCommand.Extend().Flags, &command.BoolFlag{
+		Name:               "force",
+		Aliases:            []string{"f"},
+		Usage:              "Forces install even if the directory already exists",
+		DisableDefaultText: true,
 	})
 
 	mockContext := consolemocks.NewContext(t)
 	mockContext.EXPECT().Argument(0).Return("").Once()
 	mockContext.EXPECT().Ask("What is the name of your project?", mock.Anything).Return("", errors.New("the project name is required")).Once()
 	mockContext.EXPECT().NewLine().Return()
-	mockContext.EXPECT().Spinner(mock.Anything, mock.AnythingOfType("console.SpinnerOption")).Return(nil).
-		Run(func(message string, options console.SpinnerOption) {
-			assert.Nil(t, options.Action())
-		}).Times(6)
 	assert.Contains(t, color.CaptureOutput(func(w io.Writer) {
 		assert.Nil(t, newCommand.Handle(mockContext))
 	}), "the project name is required")
@@ -73,14 +69,64 @@ func TestNewCommand(t *testing.T) {
 	mockContext.EXPECT().OptionBool("force").Return(true).Once()
 	mockContext.EXPECT().Option("module").Return("").Once()
 	mockContext.EXPECT().Ask("What is the module name?", mock.Anything).Return("github.com/example/", nil).Once()
+	mockContext.EXPECT().OptionBool("dev").Return(true).Twice()
+	mockContext.EXPECT().Option("cache").Return("memory").Once()
+	mockContext.EXPECT().Option("database").Return("postgres").Once()
+	mockContext.EXPECT().Option("http").Return("fiber").Once()
+	mockContext.EXPECT().Option("queue").Return("sync").Once()
+	mockContext.EXPECT().Option("session").Return("file").Once()
+	mockContext.EXPECT().OptionSlice("storage").Return([]string{"local", "s3"}).Once()
+	mockContext.EXPECT().Spinner(`Creating a "goravel/goravel" project at "example-app"`, mock.Anything).Return(nil).
+		Run(func(_ string, option console.SpinnerOption) {
+			assert.NoError(t, option.Action())
+		}).Once()
+
+	mockContext.EXPECT().Spinner("> @rm -rf example-app/.git example-app/.github", mock.Anything).Return(nil).
+		Run(func(_ string, option console.SpinnerOption) {
+			assert.NoError(t, option.Action())
+		}).Once()
+	mockContext.EXPECT().Spinner(`Updating module name to "github.com/example/"`, mock.Anything).Return(nil).
+		Run(func(_ string, option console.SpinnerOption) {
+			assert.NoError(t, option.Action())
+		}).Once()
+	mockContext.EXPECT().Spinner("> @go mod tidy", mock.Anything).Return(nil).
+		Run(func(_ string, option console.SpinnerOption) {
+			assert.NoError(t, option.Action())
+		}).Once()
+	mockContext.EXPECT().Spinner("> @cp .env.example .env", mock.Anything).Return(nil).
+		Run(func(_ string, option console.SpinnerOption) {
+			assert.NoError(t, option.Action())
+		}).Once()
+	mockContext.EXPECT().Spinner("> @go run . artisan key:generate", mock.Anything).Return(nil).
+		Run(func(_ string, option console.SpinnerOption) {
+			assert.NoError(t, option.Action())
+		}).Once()
+	mockContext.EXPECT().Spinner("> @go run . artisan package:install github.com/goravel/fiber@master", mock.Anything).Return(nil).
+		Run(func(_ string, option console.SpinnerOption) {
+			assert.NoError(t, option.Action())
+		}).Once()
+	mockContext.EXPECT().Spinner("> @go run . artisan package:uninstall github.com/goravel/gin", mock.Anything).Return(nil).
+		Run(func(_ string, option console.SpinnerOption) {
+			assert.NoError(t, option.Action())
+		}).Once()
+	mockContext.EXPECT().Spinner("> @go run . artisan package:install github.com/goravel/s3@master", mock.Anything).Return(nil).
+		Run(func(_ string, option console.SpinnerOption) {
+			assert.NoError(t, option.Action())
+		}).Once()
 	captureOutput := color.CaptureOutput(func(w io.Writer) {
 		assert.Nil(t, newCommand.Handle(mockContext))
 	})
+
 	assert.Contains(t, captureOutput, ".env file generated successfully!")
 	assert.Contains(t, captureOutput, "App key generated successfully!")
+	assert.Contains(t, captureOutput, "installed Fiber driver for http.")
+	assert.Contains(t, captureOutput, "uninstalled Gin driver for http.")
+	assert.Contains(t, captureOutput, "installed S3 driver for storage.")
+	assert.True(t, file.Contain(filepath.Join("example-app", "go.mod"), "github.com/goravel/fiber"))
+	assert.False(t, file.Contain(filepath.Join("example-app", "go.mod"), "github.com/goravel/gin"))
+	assert.True(t, file.Contain(filepath.Join("example-app", "go.mod"), "github.com/goravel/s3"))
 	assert.True(t, file.Exists("example-app"))
 	assert.True(t, file.Exists(filepath.Join("example-app", ".env")))
-
 	if !env.IsWindows() {
 		artisan := filepath.Join("example-app", "artisan")
 		info, err := os.Stat(artisan)
@@ -95,7 +141,6 @@ func TestNewCommand(t *testing.T) {
 	}), "the directory already exists. use the --force flag to overwrite")
 
 	assert.Nil(t, file.Remove("example-app"))
-	mockContext.AssertExpectations(t)
 }
 
 func TestCopyFile(t *testing.T) {
