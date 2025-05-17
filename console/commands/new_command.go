@@ -9,15 +9,17 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/goravel/framework/contracts/console"
 	"github.com/goravel/framework/contracts/console/command"
 	"github.com/goravel/framework/support/color"
+	supportconsole "github.com/goravel/framework/support/console"
 	"github.com/goravel/framework/support/file"
-	"github.com/pterm/pterm"
 
 	"github.com/goravel/installer/support"
+	"github.com/goravel/installer/support/modules"
 )
 
 type NewCommand struct {
@@ -36,16 +38,47 @@ func (r *NewCommand) Description() string {
 // Extend The console command extend.
 func (r *NewCommand) Extend() command.Extend {
 	return command.Extend{
+		ArgsUsage: " [--] <name>",
 		Flags: []command.Flag{
+			&command.StringFlag{
+				Name:  "cache",
+				Usage: "The cache driver your application will use",
+			},
+			&command.StringFlag{
+				Name:  "database",
+				Usage: "The database driver your application will use",
+			},
 			&command.BoolFlag{
-				Name:    "force",
-				Aliases: []string{"f"},
-				Usage:   "Forces install even if the directory already exists",
+				Name:               "dev",
+				Usage:              `Install the latest "development" release`,
+				DisableDefaultText: true,
+			},
+			&command.BoolFlag{
+				Name:               "force",
+				Aliases:            []string{"f"},
+				Usage:              "Forces install even if the directory already exists",
+				DisableDefaultText: true,
+			},
+			&command.StringFlag{
+				Name:  "http",
+				Usage: "The HTTP driver your application will use",
 			},
 			&command.StringFlag{
 				Name:    "module",
 				Aliases: []string{"m"},
 				Usage:   "Specify the custom module name to replace the default 'goravel' module",
+			},
+			&command.StringFlag{
+				Name:  "queue",
+				Usage: "The queue driver your application will use",
+			},
+			&command.StringFlag{
+				Name:  "session",
+				Usage: "The session driver your application will use",
+			},
+			&command.StringSliceFlag{
+				Name:  "storage",
+				Usage: "The filesystem modules your application will use",
 			},
 		},
 	}
@@ -53,7 +86,7 @@ func (r *NewCommand) Extend() command.Extend {
 
 // Handle Execute the console command.
 func (r *NewCommand) Handle(ctx console.Context) (err error) {
-	fmt.Println(pterm.NewRGB(52, 124, 153).Sprint(support.WelcomeHeading)) // color hex code: #8ED3F9
+	color.Printfln("<fg=52,124,153>%s</>", support.WelcomeHeading) // color hex code: #8ED3F9
 	ctx.NewLine()
 	name := ctx.Argument(0)
 	if name == "" {
@@ -109,7 +142,35 @@ func (r *NewCommand) Handle(ctx console.Context) (err error) {
 		return nil
 	}
 
-	return r.generate(ctx, name, module)
+	var drivers = modules.Modules{&modules.Cache, &modules.Database, &modules.HTTP, &modules.Queue, &modules.Session, &modules.Storage}
+	if err = drivers.ChoiceDriver(ctx); err != nil {
+		color.Errorln(err.Error())
+		return nil
+	}
+
+	if err = r.generate(ctx, name, module); err != nil {
+		color.Errorln(err.Error())
+		return nil
+	}
+
+	var version = "latest"
+	if ctx.OptionBool("dev") {
+		version = "master"
+	}
+
+	if err = drivers.Install(ctx, version, r.getPath(name)); err != nil {
+		if errMsg := err.Error(); strings.Contains(errMsg, " ERROR ") {
+			color.Println(errMsg)
+		} else {
+			color.Errorln(errMsg)
+		}
+		return nil
+	}
+
+	color.Successln("Application ready in [<op=bold>" + name + "</>]. Build something amazing!")
+	color.Successln("Are you new to Goravel? Please visit https://goravel.dev to get started.")
+
+	return
 }
 
 // verifyIfDirectoryExists Verify if the directory already exists.
@@ -129,49 +190,41 @@ func (r *NewCommand) getPath(name string) string {
 func (r *NewCommand) generate(ctx console.Context, name string, module string) error {
 	path := r.getPath(name)
 	name = filepath.Clean(name)
-	bold := pterm.NewStyle(pterm.Bold)
 
 	// remove the directory if it already exists
 	if err := os.RemoveAll(path); err != nil {
-		color.Errorf("failed to remove the directory: %s\n", err.Error())
-		return nil
+		return fmt.Errorf("failed to remove the directory: %s", err)
 	}
 
 	// clone the repository
-	clone := exec.Command("git", "clone", "--depth=1", "https://github.com/goravel/goravel.git", path)
-	err := ctx.Spinner("Creating a \"goravel/goravel\" project at \""+name+"\"", console.SpinnerOption{
-		Action: func() error {
-			return clone.Run()
-		},
-	})
-	if err != nil {
-		color.Errorf("failed to clone goravel, please check your internet connection: %s\n", err.Error())
-		return nil
+	args := []string{"clone", "--depth=1", "https://github.com/goravel/goravel.git", path}
+	if ctx.OptionBool("dev") {
+		args = slices.Insert(args, 2, "--branch=master")
+	}
+	clone := exec.Command("git", args...)
+	if err := supportconsole.ExecuteCommand(ctx, clone, fmt.Sprintf(`Creating a "goravel/goravel" project at "%s"`, name)); err != nil {
+		return fmt.Errorf("failed to clone goravel, please check your internet connection: %s", err)
 	}
 	color.Successln("created project in " + path)
 
 	// git cleanup
-	err = ctx.Spinner("> @rm -rf "+name+"/.git "+name+"/.github", console.SpinnerOption{
+	if err := ctx.Spinner("> @rm -rf "+name+"/.git "+name+"/.github", console.SpinnerOption{
 		Action: func() error {
 			return r.removeFiles(path)
 		},
-	})
-	if err != nil {
-		color.Errorf("failed to remove .git and .github folders: %s\n", err)
-		return nil
+	}); err != nil {
+		return fmt.Errorf("failed to remove .git and .github folders: %s", err)
 	}
 	color.Successln("git cleanup done")
 
 	// Replace the module name if it's different from the default
 	if module != support.DefaultModuleName {
-		err = ctx.Spinner("Updating module name to \""+module+"\"", console.SpinnerOption{
+		if err := ctx.Spinner("Updating module name to \""+module+"\"", console.SpinnerOption{
 			Action: func() error {
 				return r.replaceModule(path, module)
 			},
-		})
-		if err != nil {
-			color.Errorf("Failed to update module name: %s\n", err)
-			return nil
+		}); err != nil {
+			return fmt.Errorf("failed to update module name: %s\n", err)
 		}
 		color.Successln("Module name updated successfully!")
 	}
@@ -179,35 +232,26 @@ func (r *NewCommand) generate(ctx console.Context, name string, module string) e
 	// install dependencies
 	install := exec.Command("go", "mod", "tidy")
 	install.Dir = path
-	err = ctx.Spinner("> @go mod tidy", console.SpinnerOption{
-		Action: func() error {
-			return install.Run()
-		},
-	})
-	if err != nil {
-		color.Errorf("failed to install dependecies: %s\n", err)
-		return nil
+	if err := supportconsole.ExecuteCommand(ctx, install); err != nil {
+		return fmt.Errorf("failed to install dependecies: %s", err)
 	}
 	color.Successln("Goravel installed successfully!")
 
 	// generate .env file
-	err = ctx.Spinner("> @cp .env.example .env", console.SpinnerOption{
+	if err := ctx.Spinner("> @cp .env.example .env", console.SpinnerOption{
 		Action: func() error {
 			inputFilePath := filepath.Join(path, ".env.example")
 			outputFilePath := filepath.Join(path, ".env")
 			return r.copyFile(inputFilePath, outputFilePath)
 		},
-	})
-	if err != nil {
-		color.Errorf("failed to generate .env file: %s\n", err)
-		return nil
+	}); err != nil {
+		return fmt.Errorf("failed to generate .env file: %s", err)
 	}
 	color.Successln(".env file generated successfully!")
 
 	// set execute permission
 	if artisan := filepath.Join(path, "artisan"); file.Exists(artisan) {
-		err = os.Chmod(artisan, 0755)
-		if err != nil {
+		if err := os.Chmod(artisan, 0755); err != nil {
 			color.Errorf("failed to set artisan execute permission: %s\n", err)
 		} else {
 			color.Successln("artisan execute permission set successfully!")
@@ -217,19 +261,12 @@ func (r *NewCommand) generate(ctx console.Context, name string, module string) e
 	// generate app key
 	initAppKey := exec.Command("go", "run", ".", "artisan", "key:generate")
 	initAppKey.Dir = path
-	err = ctx.Spinner("> @go run . artisan key:generate", console.SpinnerOption{
-		Action: func() error {
-			return initAppKey.Run()
-		},
-	})
-	if err != nil {
-		color.Errorf("failed to generate app key : %s\n", err)
-		return nil
+	if err := supportconsole.ExecuteCommand(ctx, initAppKey); err != nil {
+
+		return fmt.Errorf("failed to generate app key: %s", err)
 	}
 
 	color.Successln("App key generated successfully!")
-	color.Successln("Application ready in [" + bold.Sprintf("%s", name) + "]. Build something amazing!")
-	color.Successln("Are you new to Goravel? Please visit https://goravel.dev to get started.")
 	return nil
 }
 
