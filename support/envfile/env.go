@@ -7,7 +7,7 @@ import (
 	"github.com/goravel/framework/support/file"
 )
 
-func ReplaceValues(filepath string, replacements map[string]string) error {
+func Modify(filepath string, replacements map[string]string) error {
 	src, err := file.GetContent(filepath)
 	if err != nil {
 		return err
@@ -21,7 +21,7 @@ func ReplaceValues(filepath string, replacements map[string]string) error {
 			continue
 		}
 		if strings.Contains(line, "=") {
-			key := strings.Split(line, "=")[0]
+			key := strings.TrimSpace(strings.Split(line, "=")[0])
 			position[key] = i
 		}
 	}

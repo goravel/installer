@@ -11,7 +11,7 @@ import (
 
 func TestReplaceValues(t *testing.T) {
 	t.Run("replace failed", func(t *testing.T) {
-		assert.ErrorIs(t, ReplaceValues("notfound", nil), os.ErrNotExist)
+		assert.ErrorIs(t, Modify("notfound", nil), os.ErrNotExist)
 	})
 
 	t.Run("replace success", func(t *testing.T) {
@@ -19,7 +19,7 @@ func TestReplaceValues(t *testing.T) {
 		assert.NoError(t, file.PutContent(envFile, "FOO=bar\n#comment\nBAZ=qux"))
 		assert.True(t, file.Contain(envFile, "FOO=bar\n#comment\nBAZ=qux"))
 
-		assert.NoError(t, ReplaceValues(envFile, map[string]string{
+		assert.NoError(t, Modify(envFile, map[string]string{
 			"FOO": "newbar",
 			"BAZ": "newqux",
 			"NEW": "new value",

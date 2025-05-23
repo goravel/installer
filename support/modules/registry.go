@@ -21,8 +21,8 @@ var Cache = Module{
 			Name:      "Redis",
 			Signature: "redis",
 			Package:   "github.com/goravel/redis",
-			ModifyFile: func(path string) error {
-				return envfile.ReplaceValues(filepath.Join(path, ".env"), map[string]string{
+			ModifyFiles: func(path string) error {
+				return envfile.Modify(filepath.Join(path, ".env"), map[string]string{
 					"CACHE_STORE": "redis",
 				})
 			},
@@ -38,8 +38,8 @@ var Database = Module{
 			Name:      "SQLite",
 			Signature: "sqlite",
 			Package:   "github.com/goravel/sqlite",
-			ModifyFile: func(path string) error {
-				return envfile.ReplaceValues(filepath.Join(path, ".env"), map[string]string{
+			ModifyFiles: func(path string) error {
+				return envfile.Modify(filepath.Join(path, ".env"), map[string]string{
 					"DB_CONNECTION": "sqlite",
 					"DB_DATABASE":   "forge",
 				})
@@ -49,8 +49,8 @@ var Database = Module{
 			Name:      "MySQL",
 			Signature: "mysql",
 			Package:   "github.com/goravel/mysql",
-			ModifyFile: func(path string) error {
-				return envfile.ReplaceValues(filepath.Join(path, ".env"), map[string]string{
+			ModifyFiles: func(path string) error {
+				return envfile.Modify(filepath.Join(path, ".env"), map[string]string{
 					"DB_CONNECTION": "mysql",
 					"DB_HOST":       "",
 					"DB_PORT":       "3306",
@@ -69,8 +69,8 @@ var Database = Module{
 			Name:      "SQL Server",
 			Signature: "sqlserver",
 			Package:   "github.com/goravel/sqlserver",
-			ModifyFile: func(path string) error {
-				return envfile.ReplaceValues(filepath.Join(path, ".env"), map[string]string{
+			ModifyFiles: func(path string) error {
+				return envfile.Modify(filepath.Join(path, ".env"), map[string]string{
 					"DB_CONNECTION": "sqlserver",
 					"DB_HOST":       "",
 					"DB_PORT":       "1433",
@@ -96,7 +96,7 @@ var HTTP = Module{
 			Name:      "Fiber",
 			Signature: "fiber",
 			Package:   "github.com/goravel/fiber",
-			ModifyFile: func(path string) error {
+			ModifyFiles: func(path string) error {
 				return modify.GoFile(filepath.Join(path, "config", "http.go")).
 					Find(match.Config("http")).
 					Modify(modify.ReplaceConfig("default", `"fiber"`)).Apply()
@@ -114,20 +114,11 @@ var Queue = Module{
 			Signature: "sync",
 		},
 		{
-			Name:      "Async",
-			Signature: "async",
-			ModifyFile: func(path string) error {
-				return envfile.ReplaceValues(filepath.Join(path, ".env"), map[string]string{
-					"QUEUE_CONNECTION": "async",
-				})
-			},
-		},
-		{
 			Name:      "Redis",
 			Signature: "redis",
 			Package:   "github.com/goravel/redis",
-			ModifyFile: func(path string) error {
-				return envfile.ReplaceValues(filepath.Join(path, ".env"), map[string]string{
+			ModifyFiles: func(path string) error {
+				return envfile.Modify(filepath.Join(path, ".env"), map[string]string{
 					"QUEUE_CONNECTION": "redis",
 				})
 			},
@@ -147,8 +138,8 @@ var Session = Module{
 			Name:      "Redis",
 			Signature: "redis",
 			Package:   "github.com/goravel/redis",
-			ModifyFile: func(path string) error {
-				return envfile.ReplaceValues(filepath.Join(path, ".env"), map[string]string{
+			ModifyFiles: func(path string) error {
+				return envfile.Modify(filepath.Join(path, ".env"), map[string]string{
 					"SESSION_DRIVER": "redis",
 				})
 			},

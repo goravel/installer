@@ -14,10 +14,10 @@ import (
 var installed = make(map[string]bool)
 
 type Driver struct {
-	Name       string
-	Signature  string
-	Package    string
-	ModifyFile func(path string) error
+	Name        string
+	Signature   string
+	Package     string
+	ModifyFiles func(path string) error
 }
 
 type Module struct {
@@ -157,8 +157,8 @@ func (r *Driver) Install(ctx console.Context, version, path string) error {
 		installed[r.Package] = true
 	}
 
-	if r.ModifyFile != nil {
-		if err := r.ModifyFile(path); err != nil {
+	if r.ModifyFiles != nil {
+		if err := r.ModifyFiles(path); err != nil {
 			return err
 		}
 	}

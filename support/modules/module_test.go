@@ -6,14 +6,13 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/suite"
-
 	"github.com/goravel/framework/contracts/console"
 	mocksconsole "github.com/goravel/framework/mocks/console"
 	"github.com/goravel/framework/support/color"
 	"github.com/goravel/framework/support/file"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/suite"
 )
 
 type ModulesTestSuite struct {
@@ -259,18 +258,18 @@ func (s *ModulesTestSuite) TestInstall() {
 				}`))
 				s.Require().NoError(file.PutContent(filepath.Join(path, ".env"),
 					"CACHE_STORE=memory\n"+
-						"DB_CONNECTION=postgres\n"+
-						"DB_HOST=127.0.0.1\n"+
-						"DB_PORT=5432\n"+
-						"DB_DATABASE=goravel\n"+
-						"DB_USERNAME=root\n"+
-						"DB_PASSWORD="),
+							"DB_CONNECTION=postgres\n"+
+							"DB_HOST=127.0.0.1\n"+
+							"DB_PORT=5432\n"+
+							"DB_DATABASE=goravel\n"+
+							"DB_USERNAME=root\n"+
+							"DB_PASSWORD="),
 				)
 
 				s.mockContext.EXPECT().Option(Cache.Name).Return("redis").Once()
 				s.mockContext.EXPECT().Option(Database.Name).Return("sqlserver").Once()
 				s.mockContext.EXPECT().Option(HTTP.Name).Return("fiber").Once()
-				s.mockContext.EXPECT().Option(Queue.Name).Return("async").Once()
+				s.mockContext.EXPECT().Option(Queue.Name).Return("redis").Once()
 
 				s.mockContext.EXPECT().Spinner("> @go run . artisan package:install github.com/goravel/redis@latest", mock.Anything).Return(nil).Once()
 				s.mockContext.EXPECT().Spinner("> @go run . artisan package:install github.com/goravel/sqlserver@latest", mock.Anything).Return(nil).Once()
@@ -283,13 +282,13 @@ func (s *ModulesTestSuite) TestInstall() {
 				s.False(file.Contain(filepath.Join(path, ".env"), "DB_CONNECTION=postgres"), "db connection should not be postgres")
 				s.True(file.Contain(filepath.Join(path, ".env"),
 					"DB_CONNECTION=sqlserver\n"+
-						"DB_HOST=\n"+
-						"DB_PORT=1433\n"+
-						"DB_DATABASE=forge\n"+
-						"DB_USERNAME=\n"+
-						"DB_PASSWORD=",
+							"DB_HOST=\n"+
+							"DB_PORT=1433\n"+
+							"DB_DATABASE=forge\n"+
+							"DB_USERNAME=\n"+
+							"DB_PASSWORD=",
 				), "db connection should be sqlserver")
-				s.True(file.Contain(filepath.Join(path, ".env"), "QUEUE_CONNECTION=async"), "queue connection should be async")
+				s.True(file.Contain(filepath.Join(path, ".env"), "QUEUE_CONNECTION=redis"), "queue connection should be redis")
 
 				s.Require().NoError(err)
 				s.Contains(output, "installed Redis driver for cache")
