@@ -1,4 +1,4 @@
-package envfile
+package env
 
 import (
 	"os"
@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestReplaceValues(t *testing.T) {
+func TestModify(t *testing.T) {
 	t.Run("replace failed", func(t *testing.T) {
 		assert.ErrorIs(t, Modify("notfound", nil), os.ErrNotExist)
 	})

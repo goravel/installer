@@ -6,7 +6,7 @@ import (
 	"github.com/goravel/framework/packages/match"
 	"github.com/goravel/framework/packages/modify"
 
-	"github.com/goravel/installer/support/envfile"
+	"github.com/goravel/installer/support/env"
 )
 
 var Cache = Module{
@@ -22,7 +22,7 @@ var Cache = Module{
 			Signature: "redis",
 			Package:   "github.com/goravel/redis",
 			ModifyFiles: func(path string) error {
-				return envfile.Modify(filepath.Join(path, ".env"), map[string]string{
+				return env.Modify(filepath.Join(path, ".env"), map[string]string{
 					"CACHE_STORE": "redis",
 				})
 			},
@@ -35,11 +35,16 @@ var Database = Module{
 	DefaultDriver: "postgres",
 	Drivers: []Driver{
 		{
+			Name:      "PostgreSQL",
+			Signature: "postgres",
+			Package:   "github.com/goravel/postgres",
+		},
+		{
 			Name:      "SQLite",
 			Signature: "sqlite",
 			Package:   "github.com/goravel/sqlite",
 			ModifyFiles: func(path string) error {
-				return envfile.Modify(filepath.Join(path, ".env"), map[string]string{
+				return env.Modify(filepath.Join(path, ".env"), map[string]string{
 					"DB_CONNECTION": "sqlite",
 					"DB_DATABASE":   "forge",
 				})
@@ -50,7 +55,7 @@ var Database = Module{
 			Signature: "mysql",
 			Package:   "github.com/goravel/mysql",
 			ModifyFiles: func(path string) error {
-				return envfile.Modify(filepath.Join(path, ".env"), map[string]string{
+				return env.Modify(filepath.Join(path, ".env"), map[string]string{
 					"DB_CONNECTION": "mysql",
 					"DB_HOST":       "",
 					"DB_PORT":       "3306",
@@ -61,16 +66,11 @@ var Database = Module{
 			},
 		},
 		{
-			Name:      "PostgreSQL",
-			Signature: "postgres",
-			Package:   "github.com/goravel/postgres",
-		},
-		{
 			Name:      "SQL Server",
 			Signature: "sqlserver",
 			Package:   "github.com/goravel/sqlserver",
 			ModifyFiles: func(path string) error {
-				return envfile.Modify(filepath.Join(path, ".env"), map[string]string{
+				return env.Modify(filepath.Join(path, ".env"), map[string]string{
 					"DB_CONNECTION": "sqlserver",
 					"DB_HOST":       "",
 					"DB_PORT":       "1433",
@@ -118,7 +118,7 @@ var Queue = Module{
 			Signature: "redis",
 			Package:   "github.com/goravel/redis",
 			ModifyFiles: func(path string) error {
-				return envfile.Modify(filepath.Join(path, ".env"), map[string]string{
+				return env.Modify(filepath.Join(path, ".env"), map[string]string{
 					"QUEUE_CONNECTION": "redis",
 				})
 			},
@@ -139,7 +139,7 @@ var Session = Module{
 			Signature: "redis",
 			Package:   "github.com/goravel/redis",
 			ModifyFiles: func(path string) error {
-				return envfile.Modify(filepath.Join(path, ".env"), map[string]string{
+				return env.Modify(filepath.Join(path, ".env"), map[string]string{
 					"SESSION_DRIVER": "redis",
 				})
 			},
