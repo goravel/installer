@@ -5,7 +5,7 @@ go 1.23.0
 toolchain go1.24.3
 
 require (
-	github.com/goravel/framework v1.15.2-0.20250523025922-88c15e8bda02
+	github.com/goravel/framework v1.15.9
 	github.com/stretchr/testify v1.10.0
 )
 
