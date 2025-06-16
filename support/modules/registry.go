@@ -114,6 +114,15 @@ var Queue = Module{
 			Signature: "sync",
 		},
 		{
+			Name:      "Database",
+			Signature: "database",
+			ModifyFiles: func(path string) error {
+				return env.Modify(filepath.Join(path, ".env"), map[string]string{
+					"QUEUE_CONNECTION": "database",
+				})
+			},
+		},
+		{
 			Name:      "Redis",
 			Signature: "redis",
 			Package:   "github.com/goravel/redis",
