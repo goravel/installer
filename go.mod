@@ -5,7 +5,7 @@ go 1.23.0
 toolchain go1.24.5
 
 require (
-	github.com/goravel/framework v1.15.2-0.20250616073816-d5bbc4028136
+	github.com/goravel/framework v1.16.0
 	github.com/stretchr/testify v1.10.0
 )
 
@@ -21,7 +21,7 @@ require (
 	github.com/charmbracelet/bubbletea v1.3.5 // indirect
 	github.com/charmbracelet/colorprofile v0.2.3-0.20250311203215-f60798e515dc // indirect
 	github.com/charmbracelet/huh v0.7.0 // indirect
-	github.com/charmbracelet/huh/spinner v0.0.0-20250603124601-31a1db2cbc39 // indirect
+	github.com/charmbracelet/huh/spinner v0.0.0-20250710160949-2f807e878be2 // indirect
 	github.com/charmbracelet/lipgloss v1.1.0 // indirect
 	github.com/charmbracelet/x/ansi v0.9.2 // indirect
 	github.com/charmbracelet/x/cellbuf v0.0.13 // indirect
@@ -30,7 +30,7 @@ require (
 	github.com/containerd/console v1.0.5 // indirect
 	github.com/dave/dst v0.27.3 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
-	github.com/dromara/carbon/v2 v2.6.6 // indirect
+	github.com/dromara/carbon/v2 v2.6.11 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/erikgeiser/coninput v0.0.0-20211004153227-1c3628e74d0f // indirect
 	github.com/gabriel-vasile/mimetype v1.4.9 // indirect
@@ -58,16 +58,15 @@ require (
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/urfave/cli/v3 v3.3.8 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
-	github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1 // indirect
-	golang.org/x/exp v0.0.0-20250606033433-dcc06ee1d476 // indirect
-	golang.org/x/mod v0.25.0 // indirect
-	golang.org/x/net v0.41.0 // indirect
-	golang.org/x/sync v0.15.0 // indirect
-	golang.org/x/sys v0.33.0 // indirect
-	golang.org/x/term v0.32.0 // indirect
-	golang.org/x/text v0.26.0 // indirect
-	golang.org/x/tools v0.34.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20250528174236-200df99c418a // indirect
+	github.com/xrash/smetrics v0.0.0-20250705151800-55b8f293f342 // indirect
+	golang.org/x/mod v0.26.0 // indirect
+	golang.org/x/net v0.42.0 // indirect
+	golang.org/x/sync v0.16.0 // indirect
+	golang.org/x/sys v0.34.0 // indirect
+	golang.org/x/term v0.33.0 // indirect
+	golang.org/x/text v0.27.0 // indirect
+	golang.org/x/tools v0.35.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250603155806-513f23925822 // indirect
 	google.golang.org/grpc v1.73.0 // indirect
 	google.golang.org/protobuf v1.36.6 // indirect
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
