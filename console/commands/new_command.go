@@ -137,8 +137,8 @@ func (r *NewCommand) Handle(ctx console.Context) (err error) {
 			return nil
 		}
 	}
-	if !regexp.MustCompile(`^[a-zA-Z0-9./_-]+$`).MatchString(module) {
-		color.Errorln("invalid module name format. Use only letters, numbers, dots (.), slashes (/), underscores (_), and hyphens (-). Example: [github.com/yourusername/yourproject] or [yourproject]")
+	if !regexp.MustCompile(`^[a-zA-Z0-9./_-~]+$`).MatchString(module) {
+		color.Errorln("invalid module name format. Use only letters, numbers, dots (.), slashes (/), underscores (_), hyphens (-), and tildes (~). Example: [github.com/yourusername/yourproject] or [yourproject]")
 		return nil
 	}
 
