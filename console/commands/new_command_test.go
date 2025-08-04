@@ -56,14 +56,14 @@ func TestNewCommand(t *testing.T) {
 	mockContext.EXPECT().Ask("What is the module name?", mock.Anything).Return("invalid:module", nil).Once()
 	assert.Contains(t, color.CaptureOutput(func(w io.Writer) {
 		assert.Nil(t, newCommand.Handle(mockContext))
-	}), "invalid module name format. Use only letters, numbers, dots (.), slashes (/), underscores (_), and hyphens (-). Example: [github.com/yourusername/yourproject] or [yourproject]")
+	}), "invalid module name format. Use only letters, numbers, dots (.), slashes (/), underscores (_), hyphens (-), and tildes (~). Example: [github.com/yourusername/yourproject] or [yourproject]")
 
 	mockContext.EXPECT().Argument(0).Return("example-app").Once()
 	mockContext.EXPECT().OptionBool("force").Return(true).Once()
 	mockContext.EXPECT().Option("module").Return("invalid:module").Once()
 	assert.Contains(t, color.CaptureOutput(func(w io.Writer) {
 		assert.Nil(t, newCommand.Handle(mockContext))
-	}), "invalid module name format. Use only letters, numbers, dots (.), slashes (/), underscores (_), and hyphens (-). Example: [github.com/yourusername/yourproject] or [yourproject]")
+	}), "invalid module name format. Use only letters, numbers, dots (.), slashes (/), underscores (_), hyphens (-), and tildes (~). Example: [github.com/yourusername/yourproject] or [yourproject]")
 
 	mockContext.EXPECT().Argument(0).Return("example-app").Once()
 	mockContext.EXPECT().OptionBool("force").Return(true).Once()
