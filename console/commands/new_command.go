@@ -19,7 +19,6 @@ import (
 	"github.com/goravel/framework/support/file"
 
 	"github.com/goravel/installer/support"
-	"github.com/goravel/installer/support/modules"
 )
 
 type NewCommand struct {
@@ -142,28 +141,8 @@ func (r *NewCommand) Handle(ctx console.Context) (err error) {
 		return nil
 	}
 
-	var drivers = modules.Modules{&modules.Cache, &modules.Database, &modules.HTTP, &modules.Queue, &modules.Session, &modules.Storage}
-	if err = drivers.ChoiceDriver(ctx); err != nil {
+	if err = r.generateProject(ctx, name, module); err != nil {
 		color.Errorln(err.Error())
-		return nil
-	}
-
-	if err = r.generate(ctx, name, module); err != nil {
-		color.Errorln(err.Error())
-		return nil
-	}
-
-	var version = "latest"
-	if ctx.OptionBool("dev") {
-		version = "master"
-	}
-
-	if err = drivers.Install(ctx, version, r.getPath(name)); err != nil {
-		if errMsg := err.Error(); strings.Contains(errMsg, " ERROR ") {
-			color.Println(errMsg)
-		} else {
-			color.Errorln(errMsg)
-		}
 		return nil
 	}
 
@@ -186,8 +165,7 @@ func (r *NewCommand) getPath(name string) string {
 	return filepath.Clean(filepath.Join(pwd, name))
 }
 
-// generate the project.
-func (r *NewCommand) generate(ctx console.Context, name string, module string) error {
+func (r *NewCommand) generateProject(ctx console.Context, name string, module string) error {
 	path := r.getPath(name)
 	name = filepath.Clean(name)
 
@@ -197,7 +175,7 @@ func (r *NewCommand) generate(ctx console.Context, name string, module string) e
 	}
 
 	// clone the repository
-	args := []string{"clone", "--depth=1", "https://github.com/goravel/goravel.git", path}
+	args := []string{"clone", "--depth=1", "https://github.com/goravel/goravel-lite.git", path}
 	if ctx.OptionBool("dev") {
 		args = slices.Insert(args, 2, "--branch=master")
 	}
@@ -267,6 +245,15 @@ func (r *NewCommand) generate(ctx console.Context, name string, module string) e
 	}
 
 	color.Successln("App key generated successfully!")
+
+	// install dependencies
+	packageInstall := exec.Command("go", "run", ".", "artisan", "package:install")
+	packageInstall.Dir = path
+	if err := supportconsole.ExecuteCommand(ctx, packageInstall); err != nil {
+		return fmt.Errorf("failed to install facades: %s", err)
+	}
+	color.Successln("Goravel installed successfully!")
+
 	return nil
 }
 
