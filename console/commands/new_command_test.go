@@ -10,6 +10,7 @@ import (
 	"github.com/goravel/framework/contracts/console"
 	"github.com/goravel/framework/contracts/console/command"
 	consolemocks "github.com/goravel/framework/mocks/console"
+	"github.com/goravel/framework/mocks/process"
 	"github.com/goravel/framework/support/color"
 	"github.com/goravel/framework/support/env"
 	"github.com/goravel/framework/support/file"
@@ -18,7 +19,8 @@ import (
 )
 
 func TestNewCommand(t *testing.T) {
-	newCommand := &NewCommand{}
+	mockProcess := process.NewProcess(t)
+	newCommand := &NewCommand{process: mockProcess}
 
 	assert.Equal(t, newCommand.Signature(), "new")
 	assert.Equal(t, newCommand.Description(), "Create a new Goravel application")
@@ -69,14 +71,8 @@ func TestNewCommand(t *testing.T) {
 	mockContext.EXPECT().OptionBool("force").Return(true).Once()
 	mockContext.EXPECT().Option("module").Return("").Once()
 	mockContext.EXPECT().Ask("What is the module name?", mock.Anything).Return("github.com/example/", nil).Once()
-	mockContext.EXPECT().OptionBool("dev").Return(true).Twice()
-	mockContext.EXPECT().Option("cache").Return("memory").Once()
-	mockContext.EXPECT().Option("database").Return("postgres").Once()
-	mockContext.EXPECT().Option("http").Return("fiber").Once()
-	mockContext.EXPECT().Option("queue").Return("sync").Once()
-	mockContext.EXPECT().Option("session").Return("file").Once()
-	mockContext.EXPECT().OptionSlice("storage").Return([]string{"local", "s3"}).Once()
-	mockContext.EXPECT().Spinner(`Creating a "goravel/goravel" project at "example-app"`, mock.Anything).Return(nil).
+	mockContext.EXPECT().OptionBool("dev").Return(true).Once()
+	mockContext.EXPECT().Spinner(`Creating a "goravel/goravel-lite" project at "example-app"`, mock.Anything).Return(nil).
 		Run(func(_ string, option console.SpinnerOption) {
 			assert.NoError(t, option.Action())
 		}).Once()
@@ -101,30 +97,20 @@ func TestNewCommand(t *testing.T) {
 		Run(func(_ string, option console.SpinnerOption) {
 			assert.NoError(t, option.Action())
 		}).Once()
-	mockContext.EXPECT().Spinner("> @go run . artisan package:install github.com/goravel/fiber@master", mock.Anything).Return(nil).
-		Run(func(_ string, option console.SpinnerOption) {
-			assert.NoError(t, option.Action())
-		}).Once()
-	mockContext.EXPECT().Spinner("> @go run . artisan package:uninstall github.com/goravel/gin", mock.Anything).Return(nil).
-		Run(func(_ string, option console.SpinnerOption) {
-			assert.NoError(t, option.Action())
-		}).Once()
-	mockContext.EXPECT().Spinner("> @go run . artisan package:install github.com/goravel/s3@master", mock.Anything).Return(nil).
-		Run(func(_ string, option console.SpinnerOption) {
-			assert.NoError(t, option.Action())
-		}).Once()
+
+	mockProcess.EXPECT().Path("/Users/bowen/code/goravel/installer/console/commands/example-app").Return(mockProcess).Once()
+	mockProcess.EXPECT().TapCmd(mock.AnythingOfType("func(*exec.Cmd)")).Return(mockProcess).Once()
+	mockResult := process.NewResult(t)
+	mockProcess.EXPECT().Run("go", "run", ".", "artisan", "package:install").Return(mockResult, nil).Once()
+	mockResult.EXPECT().Error().Return(nil).Once()
+	mockResult.EXPECT().ErrorOutput().Return("").Once()
+
 	captureOutput := color.CaptureOutput(func(w io.Writer) {
 		assert.Nil(t, newCommand.Handle(mockContext))
 	})
 
 	assert.Contains(t, captureOutput, ".env file generated successfully!")
 	assert.Contains(t, captureOutput, "App key generated successfully!")
-	assert.Contains(t, captureOutput, "installed Fiber driver for http.")
-	assert.Contains(t, captureOutput, "uninstalled Gin driver for http.")
-	assert.Contains(t, captureOutput, "installed S3 driver for storage.")
-	assert.True(t, file.Contain(filepath.Join("example-app", "go.mod"), "github.com/goravel/fiber"))
-	assert.False(t, file.Contain(filepath.Join("example-app", "go.mod"), "github.com/goravel/gin"))
-	assert.True(t, file.Contain(filepath.Join("example-app", "go.mod"), "github.com/goravel/s3"))
 	assert.True(t, file.Exists("example-app"))
 	assert.True(t, file.Exists(filepath.Join("example-app", ".env")))
 	if !env.IsWindows() {
