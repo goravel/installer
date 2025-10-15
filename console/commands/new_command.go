@@ -246,12 +246,18 @@ func (r *NewCommand) generateProject(ctx console.Context, name string, module st
 
 	color.Successln("App key generated successfully!")
 
-	// install dependencies
+	// install facades
 	packageInstall := exec.Command("go", "run", ".", "artisan", "package:install")
 	packageInstall.Dir = path
-	if err := supportconsole.ExecuteCommand(ctx, packageInstall); err != nil {
+	packageInstall.Stdin = os.Stdin
+	packageInstall.Stdout = os.Stdout
+	packageInstall.Stderr = os.Stderr
+
+	err := packageInstall.Run()
+	if err != nil {
 		return fmt.Errorf("failed to install facades: %s", err)
 	}
+
 	color.Successln("Goravel installed successfully!")
 
 	return nil
