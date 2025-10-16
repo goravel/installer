@@ -156,7 +156,7 @@ func TestReplaceModule(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "test-replace-module")
 	assert.Nil(t, err)
 	defer func() {
-		os.RemoveAll(tmpDir)
+		_ = os.RemoveAll(tmpDir)
 	}()
 
 	goFile := filepath.Join(tmpDir, "main.go")
