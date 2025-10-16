@@ -240,7 +240,7 @@ func (r *NewCommand) generateProject(ctx console.Context, name string, module st
 		return fmt.Errorf("failed to install facades: %s", err)
 	}
 	if result.Error() != nil {
-		return fmt.Errorf("failed to install facades: %s", err)
+		return fmt.Errorf("failed to install facades: %s", result.Error())
 	}
 	if errorOutput := result.ErrorOutput(); errorOutput != "" {
 		return fmt.Errorf("failed to install facades: %s", errorOutput)
