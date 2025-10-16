@@ -2,7 +2,6 @@ package commands
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -15,6 +14,7 @@ import (
 	"github.com/goravel/framework/contracts/console"
 	"github.com/goravel/framework/contracts/console/command"
 	"github.com/goravel/framework/contracts/process"
+	"github.com/goravel/framework/errors"
 	"github.com/goravel/framework/support/color"
 	supportconsole "github.com/goravel/framework/support/console"
 	"github.com/goravel/framework/support/file"
@@ -184,7 +184,7 @@ func (r *NewCommand) generateProject(ctx console.Context, name string, module st
 				return r.replaceModule(path, module)
 			},
 		}); err != nil {
-			return fmt.Errorf("failed to update module name: %s\n", err)
+			return fmt.Errorf("failed to update module name: %s", err)
 		}
 		color.Successln("Module name updated successfully!")
 	}
@@ -265,7 +265,7 @@ func (r *NewCommand) replaceModule(path, module string) error {
 		if err != nil {
 			return fmt.Errorf("error opening %s: %w", filePath, err)
 		}
-		defer fileContent.Close()
+		defer errors.Ignore(fileContent.Close)
 
 		var newContent strings.Builder
 		var modified bool
@@ -313,14 +313,14 @@ func (r *NewCommand) copyFile(inputFilePath, outputFilePath string) (err error) 
 	if err != nil {
 		return err
 	}
-	defer in.Close()
+	defer errors.Ignore(in.Close)
 
 	// Create .env file
 	out, err := os.Create(outputFilePath)
 	if err != nil {
 		return err
 	}
-	defer out.Close()
+	defer errors.Ignore(out.Close)
 
 	// Copy .env.example to .env file
 	_, err = io.Copy(out, in)

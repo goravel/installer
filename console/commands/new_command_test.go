@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/goravel/framework/contracts/console"
@@ -98,7 +99,9 @@ func TestNewCommand(t *testing.T) {
 			assert.NoError(t, option.Action())
 		}).Once()
 
-	mockProcess.EXPECT().Path("/Users/bowen/code/goravel/installer/console/commands/example-app").Return(mockProcess).Once()
+	mockProcess.EXPECT().Path(mock.MatchedBy(func(path string) bool {
+		return strings.Contains(path, "/installer/console/commands/example-app")
+	})).Return(mockProcess).Once()
 	mockProcess.EXPECT().TapCmd(mock.AnythingOfType("func(*exec.Cmd)")).Return(mockProcess).Once()
 	mockResult := process.NewResult(t)
 	mockProcess.EXPECT().Run("go", "run", ".", "artisan", "package:install").Return(mockResult, nil).Once()
@@ -152,7 +155,9 @@ func TestReplaceModule(t *testing.T) {
 
 	tmpDir, err := os.MkdirTemp("", "test-replace-module")
 	assert.Nil(t, err)
-	defer os.RemoveAll(tmpDir)
+	defer func() {
+		os.RemoveAll(tmpDir)
+	}()
 
 	goFile := filepath.Join(tmpDir, "main.go")
 	modFile := filepath.Join(tmpDir, "go.mod")
