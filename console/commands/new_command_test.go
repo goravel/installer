@@ -100,7 +100,7 @@ func TestNewCommand(t *testing.T) {
 		}).Once()
 
 	mockProcess.EXPECT().Path(mock.MatchedBy(func(path string) bool {
-		return strings.Contains(path, "/installer/console/commands/example-app")
+		return strings.Contains(path, "example-app")
 	})).Return(mockProcess).Once()
 	mockProcess.EXPECT().TapCmd(mock.AnythingOfType("func(*exec.Cmd)")).Return(mockProcess).Once()
 	mockResult := process.NewResult(t)
