@@ -2,7 +2,6 @@ package commands
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -14,15 +13,21 @@ import (
 
 	"github.com/goravel/framework/contracts/console"
 	"github.com/goravel/framework/contracts/console/command"
+	"github.com/goravel/framework/contracts/process"
+	"github.com/goravel/framework/errors"
 	"github.com/goravel/framework/support/color"
 	supportconsole "github.com/goravel/framework/support/console"
 	"github.com/goravel/framework/support/file"
 
 	"github.com/goravel/installer/support"
-	"github.com/goravel/installer/support/modules"
 )
 
 type NewCommand struct {
+	process process.Process
+}
+
+func NewNewCommand(process process.Process) *NewCommand {
+	return &NewCommand{process: process}
 }
 
 // Signature The name and signature of the console command.
@@ -40,14 +45,6 @@ func (r *NewCommand) Extend() command.Extend {
 	return command.Extend{
 		ArgsUsage: " [--] <name>",
 		Flags: []command.Flag{
-			&command.StringFlag{
-				Name:  "cache",
-				Usage: "The cache driver your application will use",
-			},
-			&command.StringFlag{
-				Name:  "database",
-				Usage: "The database driver your application will use",
-			},
 			&command.BoolFlag{
 				Name:               "dev",
 				Usage:              `Install the latest "development" release`,
@@ -60,25 +57,9 @@ func (r *NewCommand) Extend() command.Extend {
 				DisableDefaultText: true,
 			},
 			&command.StringFlag{
-				Name:  "http",
-				Usage: "The HTTP driver your application will use",
-			},
-			&command.StringFlag{
 				Name:    "module",
 				Aliases: []string{"m"},
 				Usage:   "Specify the custom module name to replace the default 'goravel' module",
-			},
-			&command.StringFlag{
-				Name:  "queue",
-				Usage: "The queue driver your application will use",
-			},
-			&command.StringFlag{
-				Name:  "session",
-				Usage: "The session driver your application will use",
-			},
-			&command.StringSliceFlag{
-				Name:  "storage",
-				Usage: "The filesystem modules your application will use",
 			},
 		},
 	}
@@ -142,28 +123,8 @@ func (r *NewCommand) Handle(ctx console.Context) (err error) {
 		return nil
 	}
 
-	var drivers = modules.Modules{&modules.Cache, &modules.Database, &modules.HTTP, &modules.Queue, &modules.Session, &modules.Storage}
-	if err = drivers.ChoiceDriver(ctx); err != nil {
+	if err = r.generateProject(ctx, name, module); err != nil {
 		color.Errorln(err.Error())
-		return nil
-	}
-
-	if err = r.generate(ctx, name, module); err != nil {
-		color.Errorln(err.Error())
-		return nil
-	}
-
-	var version = "latest"
-	if ctx.OptionBool("dev") {
-		version = "master"
-	}
-
-	if err = drivers.Install(ctx, version, r.getPath(name)); err != nil {
-		if errMsg := err.Error(); strings.Contains(errMsg, " ERROR ") {
-			color.Println(errMsg)
-		} else {
-			color.Errorln(errMsg)
-		}
 		return nil
 	}
 
@@ -186,8 +147,7 @@ func (r *NewCommand) getPath(name string) string {
 	return filepath.Clean(filepath.Join(pwd, name))
 }
 
-// generate the project.
-func (r *NewCommand) generate(ctx console.Context, name string, module string) error {
+func (r *NewCommand) generateProject(ctx console.Context, name string, module string) error {
 	path := r.getPath(name)
 	name = filepath.Clean(name)
 
@@ -197,12 +157,12 @@ func (r *NewCommand) generate(ctx console.Context, name string, module string) e
 	}
 
 	// clone the repository
-	args := []string{"clone", "--depth=1", "https://github.com/goravel/goravel.git", path}
+	args := []string{"clone", "--depth=1", "https://github.com/goravel/goravel-lite.git", path}
 	if ctx.OptionBool("dev") {
 		args = slices.Insert(args, 2, "--branch=master")
 	}
 	clone := exec.Command("git", args...)
-	if err := supportconsole.ExecuteCommand(ctx, clone, fmt.Sprintf(`Creating a "goravel/goravel" project at "%s"`, name)); err != nil {
+	if err := supportconsole.ExecuteCommand(ctx, clone, fmt.Sprintf(`Creating a "goravel/goravel-lite" project at "%s"`, name)); err != nil {
 		return fmt.Errorf("failed to clone goravel, please check your internet connection: %s", err)
 	}
 	color.Successln("created project in " + path)
@@ -224,7 +184,7 @@ func (r *NewCommand) generate(ctx console.Context, name string, module string) e
 				return r.replaceModule(path, module)
 			},
 		}); err != nil {
-			return fmt.Errorf("failed to update module name: %s\n", err)
+			return fmt.Errorf("failed to update module name: %s", err)
 		}
 		color.Successln("Module name updated successfully!")
 	}
@@ -267,6 +227,27 @@ func (r *NewCommand) generate(ctx console.Context, name string, module string) e
 	}
 
 	color.Successln("App key generated successfully!")
+
+	// install facades
+	result, err := r.process.Path(path).TapCmd(func(cmd *exec.Cmd) {
+		cmd.SysProcAttr = nil
+		cmd.Stdin = os.Stdin
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+	}).Run("go", "run", ".", "artisan", "package:install")
+
+	if err != nil {
+		return fmt.Errorf("failed to install facades: %s", err)
+	}
+	if result.Error() != nil {
+		return fmt.Errorf("failed to install facades: %s", result.Error())
+	}
+	if errorOutput := result.ErrorOutput(); errorOutput != "" {
+		return fmt.Errorf("failed to install facades: %s", errorOutput)
+	}
+
+	color.Successln("Goravel installed successfully!")
+
 	return nil
 }
 
@@ -284,7 +265,7 @@ func (r *NewCommand) replaceModule(path, module string) error {
 		if err != nil {
 			return fmt.Errorf("error opening %s: %w", filePath, err)
 		}
-		defer fileContent.Close()
+		defer errors.Ignore(fileContent.Close)
 
 		var newContent strings.Builder
 		var modified bool
@@ -332,14 +313,14 @@ func (r *NewCommand) copyFile(inputFilePath, outputFilePath string) (err error) 
 	if err != nil {
 		return err
 	}
-	defer in.Close()
+	defer errors.Ignore(in.Close)
 
 	// Create .env file
 	out, err := os.Create(outputFilePath)
 	if err != nil {
 		return err
 	}
-	defer out.Close()
+	defer errors.Ignore(out.Close)
 
 	// Copy .env.example to .env file
 	_, err = io.Copy(out, in)
