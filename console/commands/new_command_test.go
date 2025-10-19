@@ -99,10 +99,10 @@ func TestNewCommand(t *testing.T) {
 			assert.NoError(t, option.Action())
 		}).Once()
 
+	mockProcess.EXPECT().TTY().Return(mockProcess).Once()
 	mockProcess.EXPECT().Path(mock.MatchedBy(func(path string) bool {
 		return strings.Contains(path, "example-app")
 	})).Return(mockProcess).Once()
-	mockProcess.EXPECT().TapCmd(mock.AnythingOfType("func(*exec.Cmd)")).Return(mockProcess).Once()
 	mockResult := process.NewResult(t)
 	mockProcess.EXPECT().Run("go", "run", ".", "artisan", "package:install").Return(mockResult, nil).Once()
 	mockResult.EXPECT().Error().Return(nil).Once()

@@ -229,12 +229,7 @@ func (r *NewCommand) generateProject(ctx console.Context, name string, module st
 	color.Successln("App key generated successfully!")
 
 	// install facades
-	result, err := r.process.Path(path).TapCmd(func(cmd *exec.Cmd) {
-		cmd.SysProcAttr = nil
-		cmd.Stdin = os.Stdin
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-	}).Run("go", "run", ".", "artisan", "package:install")
+	result, err := r.process.TTY().Path(path).Run("go", "run", ".", "artisan", "package:install")
 
 	if err != nil {
 		return fmt.Errorf("failed to install facades: %s", err)
