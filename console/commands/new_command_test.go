@@ -220,7 +220,7 @@ func TestCheckModuleName(t *testing.T) {
 		}
 	})
 
-	t.Run("invaild", func(t *testing.T) {
+	t.Run("invalid", func(t *testing.T) {
 		invalidModules := []string{
 			"invalid:module",
 			"module with spaces",

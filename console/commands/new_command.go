@@ -22,6 +22,8 @@ import (
 	"github.com/goravel/installer/support"
 )
 
+var moduleNameRegexp = regexp.MustCompile(`^[a-zA-Z0-9./_~-]+$`)
+
 type NewCommand struct {
 	process process.Process
 }
@@ -323,5 +325,5 @@ func (r *NewCommand) copyFile(inputFilePath, outputFilePath string) (err error) 
 }
 
 func checkModuleName(module string) bool {
-	return regexp.MustCompile(`^[a-zA-Z0-9./_~-]+$`).MatchString(module)
+	return moduleNameRegexp.MatchString(module)
 }
