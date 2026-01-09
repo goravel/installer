@@ -118,7 +118,7 @@ func (r *NewCommand) Handle(ctx console.Context) (err error) {
 			return nil
 		}
 	}
-	if !regexp.MustCompile(`^[a-zA-Z0-9./_-~]+$`).MatchString(module) {
+	if !checkModuleName(module) {
 		color.Errorln("invalid module name format. Use only letters, numbers, dots (.), slashes (/), underscores (_), hyphens (-), and tildes (~). Example: [github.com/yourusername/yourproject] or [yourproject]")
 		return nil
 	}
@@ -320,4 +320,8 @@ func (r *NewCommand) copyFile(inputFilePath, outputFilePath string) (err error) 
 	// Copy .env.example to .env file
 	_, err = io.Copy(out, in)
 	return err
+}
+
+func checkModuleName(module string) bool {
+	return regexp.MustCompile(`^[a-zA-Z0-9./_~-]+$`).MatchString(module)
 }
