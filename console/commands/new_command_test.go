@@ -194,3 +194,59 @@ func main() {}`), os.ModePerm)
 	assert.Nil(t, err)
 	assert.Equal(t, "This is a test file.", string(invalidContent))
 }
+
+func TestCheckModuleName(t *testing.T) {
+	t.Run("valid", func(t *testing.T) {
+		validModules := []string{
+			"goravel",
+			"github.com/goravel/framework",
+			"github.com/user/project",
+			"example.com/my-project",
+			"example.com/my_project",
+			"gitlab.com/user/project/submodule",
+			"project-name",
+			"project_name",
+			"project.name",
+			"example.com/~user/project",
+			"a",
+			"123",
+			"example.com/project-123_test.v2",
+		}
+
+		for _, module := range validModules {
+			t.Run("valid_"+module, func(t *testing.T) {
+				assert.True(t, checkModuleName(module), "Expected %s to be valid", module)
+			})
+		}
+	})
+
+	t.Run("invalid", func(t *testing.T) {
+		invalidModules := []string{
+			"invalid:module",
+			"module with spaces",
+			"github.com/user/project!",
+			"example.com/project@version",
+			"project#name",
+			"project$name",
+			"project%name",
+			"project&name",
+			"project*name",
+			"project(name)",
+			"project[name]",
+			"project{name}",
+			"project|name",
+			"project\\name",
+			"project;name",
+			"project'name",
+			"project\"name",
+			"project<name>",
+			"project?name",
+		}
+
+		for _, module := range invalidModules {
+			t.Run("invalid_"+module, func(t *testing.T) {
+				assert.False(t, checkModuleName(module), "Expected %s to be invalid", module)
+			})
+		}
+	})
+}
