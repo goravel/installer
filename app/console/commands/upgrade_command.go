@@ -29,10 +29,10 @@ func (r *UpgradeCommand) Extend() command.Extend {
 	return command.Extend{
 		ArgsUsage: " [version]",
 		Arguments: []command.Argument{
-			&command.ArgumentStringSlice{
-				Name:  "version",
-				Value: "latest",
-				Usage: "The version of Goravel installer to upgrade to (default: latest)",
+			&command.ArgumentString{
+				Name:    "version",
+				Default: "latest",
+				Usage:   "The version of Goravel installer to upgrade to (default: latest)",
 			},
 		},
 	}
@@ -43,7 +43,7 @@ func (r *UpgradeCommand) Handle(ctx console.Context) error {
 	pkg := "github.com/goravel/installer/goravel"
 	version := ctx.ArgumentString("version")
 
-	if res := facades.Process().WithLoading().Run("go", "install", pkg+"@"+version); res.Failed() {
+	if res := facades.Process().WithSpinner().Run("go", "install", pkg+"@"+version); res.Failed() {
 		color.Errorf("Failed to upgrade Goravel installer: %s\n", res.Error())
 
 		return nil

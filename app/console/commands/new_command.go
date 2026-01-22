@@ -231,7 +231,7 @@ func (r *NewCommand) initProject(path string) error {
 		}
 	}
 
-	if res := facades.Process().WithLoading("Installing dependencies").Run("go", "mod", "tidy"); res.Failed() {
+	if res := facades.Process().WithSpinner("Installing dependencies").Run("go", "mod", "tidy"); res.Failed() {
 		return fmt.Errorf("failed to install dependencies: %s", res.Error())
 	}
 
@@ -243,7 +243,7 @@ func (r *NewCommand) initProject(path string) error {
 
 	color.Successln("Generated .env file")
 
-	if res := facades.Process().WithLoading("Generating application key").Path(path).Run("go", "run", ".", "artisan", "key:generate"); res.Failed() {
+	if res := facades.Process().WithSpinner("Generating application key").Path(path).Run("go", "run", ".", "artisan", "key:generate"); res.Failed() {
 		return fmt.Errorf("failed to generate app key: %s", res.Error())
 	}
 
