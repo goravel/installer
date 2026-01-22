@@ -10,4 +10,3 @@ const WelcomeHeading = `
   `
 
 const DefaultModuleName = "goravel"
-const InstallerModuleName = "github.com/goravel/installer/goravel"

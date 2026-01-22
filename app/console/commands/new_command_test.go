@@ -21,7 +21,7 @@ import (
 
 func TestNewCommand(t *testing.T) {
 	mockProcess := process.NewProcess(t)
-	newCommand := &NewCommand{process: mockProcess}
+	newCommand := &NewCommand{}
 
 	assert.Equal(t, newCommand.Signature(), "new")
 	assert.Equal(t, newCommand.Description(), "Create a new Goravel application")
@@ -104,7 +104,7 @@ func TestNewCommand(t *testing.T) {
 		return strings.Contains(path, "example-app")
 	})).Return(mockProcess).Once()
 	mockResult := process.NewResult(t)
-	mockProcess.EXPECT().Run("go", "run", ".", "artisan", "package:install").Return(mockResult, nil).Once()
+	mockProcess.EXPECT().Run("go", "run", ".", "artisan", "package:install").Return(mockResult).Once()
 	mockResult.EXPECT().Error().Return(nil).Once()
 	mockResult.EXPECT().ErrorOutput().Return("").Once()
 
@@ -130,24 +130,6 @@ func TestNewCommand(t *testing.T) {
 	}), "the directory already exists. use the --force flag to overwrite")
 
 	assert.Nil(t, file.Remove("example-app"))
-}
-
-func TestCopyFile(t *testing.T) {
-	newCommand := &NewCommand{}
-
-	tmpDir, err := os.MkdirTemp("", "test-copy-file")
-	assert.Nil(t, err)
-	src := filepath.Join(tmpDir, ".env.example")
-	dst := filepath.Join(tmpDir, ".env")
-
-	// Create a mock .env.example file for testing
-	err = os.WriteFile(src, []byte("example env"), os.ModePerm)
-	assert.Nil(t, err)
-	assert.True(t, file.Exists(src))
-	assert.Nil(t, newCommand.copyFile(src, dst))
-	assert.True(t, file.Exists(dst))
-	assert.Nil(t, os.Remove(src))
-	assert.Nil(t, os.Remove(dst))
 }
 
 func TestReplaceModule(t *testing.T) {
@@ -177,7 +159,7 @@ func main() {}`), os.ModePerm)
 	err = os.WriteFile(invalidFile, []byte("This is a test file."), os.ModePerm)
 	assert.Nil(t, err)
 
-	err = newCommand.replaceModule(tmpDir, newModule)
+	err = newCommand.replaceModule(nil, tmpDir, newModule)
 	assert.Nil(t, err)
 
 	modContent, err := os.ReadFile(modFile)

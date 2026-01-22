@@ -10,12 +10,11 @@ import (
 	"github.com/goravel/framework/support/color"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-
-	"github.com/goravel/installer/support"
 )
 
 func TestUpgradeCommand(t *testing.T) {
 	upgradeCommand := &UpgradeCommand{}
+	pkg := "github.com/goravel/installer/goravel"
 
 	assert.Equal(t, upgradeCommand.Signature(), "upgrade")
 	assert.Equal(t, upgradeCommand.Description(), "Upgrade Goravel installer")
@@ -27,7 +26,7 @@ func TestUpgradeCommand(t *testing.T) {
 	// upgrade failed
 	mockContext.EXPECT().Argument(0).Return("unknown").Once()
 	mockContext.EXPECT().Spinner(
-		fmt.Sprintf("> @go install %s@unknown", support.InstallerModuleName),
+		fmt.Sprintf("> @go install %s@unknown", pkg),
 		mock.AnythingOfType("console.SpinnerOption")).
 		RunAndReturn(func(_ string, option console.SpinnerOption) error {
 			return option.Action()
@@ -41,7 +40,7 @@ func TestUpgradeCommand(t *testing.T) {
 	//upgrade success
 	mockContext.EXPECT().Argument(0).Return("").Once()
 	mockContext.EXPECT().Spinner(
-		fmt.Sprintf("> @go install %s@latest", support.InstallerModuleName),
+		fmt.Sprintf("> @go install %s@latest", pkg),
 		mock.AnythingOfType("console.SpinnerOption")).Return(nil).Once()
 	captureOutput = color.CaptureOutput(func(w io.Writer) {
 		assert.NoError(t, upgradeCommand.Handle(mockContext))
