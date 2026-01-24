@@ -83,5 +83,5 @@ func (r *Application) Register(commands []contractsconsole.Command) {
 		}
 	}
 
-	r.Application.SetCommands(r.commands)
+	r.SetCommands(r.commands)
 }
