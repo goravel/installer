@@ -283,6 +283,7 @@ func main() {}`), 0644)
 
 	// Mock initProject - mod tidy
 	mockProcess.EXPECT().WithSpinner("Installing dependencies").Return(mockProcess).Once()
+	mockProcess.EXPECT().Path(mock.Anything).Return(mockProcess).Once()
 	mockModTidyResult := mocksprocess.NewResult(t)
 	mockModTidyResult.EXPECT().Failed().Return(false).Once()
 	mockProcess.EXPECT().Run("go", "mod", "tidy").Return(mockModTidyResult).Once()
@@ -351,6 +352,7 @@ func TestInitProject(t *testing.T) {
 
 		// Mock go mod tidy
 		mockProcess.EXPECT().WithSpinner("Installing dependencies").Return(mockProcess).Once()
+		mockProcess.EXPECT().Path(tmpDir).Return(mockProcess).Once()
 		mockModTidyResult := mocksprocess.NewResult(t)
 		mockModTidyResult.EXPECT().Failed().Return(false).Once()
 		mockProcess.EXPECT().Run("go", "mod", "tidy").Return(mockModTidyResult).Once()
@@ -394,6 +396,7 @@ func TestInitProject(t *testing.T) {
 
 		// Mock go mod tidy failure
 		mockProcess.EXPECT().WithSpinner("Installing dependencies").Return(mockProcess).Once()
+		mockProcess.EXPECT().Path(tmpDir).Return(mockProcess).Once()
 		mockModTidyResult := mocksprocess.NewResult(t)
 		mockModTidyResult.EXPECT().Failed().Return(true).Once()
 		mockModTidyResult.EXPECT().Error().Return(assert.AnError).Once()
@@ -421,6 +424,7 @@ func TestInitProject(t *testing.T) {
 
 		// Mock go mod tidy success
 		mockProcess.EXPECT().WithSpinner("Installing dependencies").Return(mockProcess).Once()
+		mockProcess.EXPECT().Path(tmpDir).Return(mockProcess).Once()
 		mockModTidyResult := mocksprocess.NewResult(t)
 		mockModTidyResult.EXPECT().Failed().Return(false).Once()
 		mockProcess.EXPECT().Run("go", "mod", "tidy").Return(mockModTidyResult).Once()
@@ -460,6 +464,7 @@ func TestInitProject(t *testing.T) {
 
 		// Mock go mod tidy
 		mockProcess.EXPECT().WithSpinner("Installing dependencies").Return(mockProcess).Once()
+		mockProcess.EXPECT().Path(tmpDir).Return(mockProcess).Once()
 		mockModTidyResult := mocksprocess.NewResult(t)
 		mockModTidyResult.EXPECT().Failed().Return(false).Once()
 		mockProcess.EXPECT().Run("go", "mod", "tidy").Return(mockModTidyResult).Once()

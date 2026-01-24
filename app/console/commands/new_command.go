@@ -231,7 +231,7 @@ func (r *NewCommand) initProject(path string) error {
 		}
 	}
 
-	if res := facades.Process().WithSpinner("Installing dependencies").Run("go", "mod", "tidy"); res.Failed() {
+	if res := facades.Process().WithSpinner("Installing dependencies").Path(path).Run("go", "mod", "tidy"); res.Failed() {
 		return fmt.Errorf("failed to install dependencies: %s", res.Error())
 	}
 
@@ -251,8 +251,6 @@ func (r *NewCommand) initProject(path string) error {
 }
 
 func (r *NewCommand) installFacades(path string) error {
-	// install facades
-	// process := facades.Process()
 	if res := facades.Process().TTY().Path(path).Run("go", "run", ".", "artisan", "package:install"); res.Failed() {
 		return fmt.Errorf("failed to install facades: %s", res.Error())
 	}
