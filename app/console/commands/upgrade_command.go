@@ -1,17 +1,17 @@
 package commands
 
 import (
-	"os/exec"
-
 	"github.com/goravel/framework/contracts/console"
 	"github.com/goravel/framework/contracts/console/command"
 	"github.com/goravel/framework/support/color"
-	supportconsole "github.com/goravel/framework/support/console"
 
-	"github.com/goravel/installer/support"
+	"github.com/goravel/installer/app/facades"
 )
 
-type UpgradeCommand struct {
+type UpgradeCommand struct{}
+
+func NewUpgradeCommand() *UpgradeCommand {
+	return &UpgradeCommand{}
 }
 
 // Signature The name and signature of the console command.
@@ -28,21 +28,23 @@ func (r *UpgradeCommand) Description() string {
 func (r *UpgradeCommand) Extend() command.Extend {
 	return command.Extend{
 		ArgsUsage: " [version]",
+		Arguments: []command.Argument{
+			&command.ArgumentString{
+				Name:    "version",
+				Default: "latest",
+				Usage:   "The version of Goravel installer to upgrade to (default: latest)",
+			},
+		},
 	}
 }
 
 // Handle Execute the console command.
 func (r *UpgradeCommand) Handle(ctx console.Context) error {
-	pkg := support.InstallerModuleName
-	version := ctx.Argument(0)
-	if version == "" {
-		version = "latest"
-	}
+	pkg := "github.com/goravel/installer/goravel"
+	version := ctx.ArgumentString("version")
 
-	upgrade := exec.Command("go", "install", pkg+"@"+version)
-	if err := supportconsole.ExecuteCommand(ctx, upgrade); err != nil {
-		color.Errorln("Failed to upgrade Goravel installer")
-		color.Red().Println(err.Error())
+	if res := facades.Process().WithSpinner().Run("go", "install", pkg+"@"+version); res.Failed() {
+		color.Errorf("Failed to upgrade Goravel installer: %s\n", res.Error())
 
 		return nil
 	}
