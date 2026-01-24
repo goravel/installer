@@ -30,11 +30,7 @@ func (r *ArtisanServiceProvider) Relationship() binding.Relationship {
 
 func (r *ArtisanServiceProvider) Register(app foundation.Application) {
 	app.Singleton(binding.Artisan, func(app foundation.Application) (any, error) {
-		name := "goravel"
-		usage := "Goravel Installer"
-		usageText := "goravel [global options] command [command options] [arguments...]"
-
-		return NewApplication(name, usage, usageText, support.Version, false), nil
+		return NewApplication(), nil
 	})
 }
 
@@ -62,9 +58,13 @@ type Application struct {
 	writer     io.Writer
 }
 
-// NewApplication Create a new Artisan application.
-// Will add artisan flag to the command if useArtisan is true.
-func NewApplication(name, usage, usageText, version string, useArtisan bool) contractsconsole.Artisan {
+func NewApplication() contractsconsole.Artisan {
+	name := "goravel"
+	usage := "Goravel Installer"
+	usageText := "goravel [global options] command [command options] [arguments...]"
+	version := support.Version
+	useArtisan := false
+
 	return &Application{
 		Application: console.NewApplication(name, usage, usageText, version, useArtisan),
 		name:        name,
