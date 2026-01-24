@@ -9,6 +9,7 @@ import (
 	"github.com/goravel/framework/contracts/process"
 	mocksconsole "github.com/goravel/framework/mocks/console"
 	mocksprocess "github.com/goravel/framework/mocks/process"
+	"github.com/goravel/framework/support/env"
 	frameworkmock "github.com/goravel/framework/testing/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -473,10 +474,15 @@ func TestInitProject(t *testing.T) {
 		err = newCommand.initProject(tmpDir)
 		assert.Nil(t, err)
 
-		// Verify artisan permissions were set to 0755
+		// Verify artisan permissions were set correctly
 		info, err := os.Stat(artisanFile)
 		assert.Nil(t, err)
-		assert.Equal(t, os.FileMode(0755), info.Mode().Perm())
+		// On Windows, file permissions are different (0666), on Unix-like systems it's 0755
+		if env.IsWindows() {
+			assert.Equal(t, os.FileMode(0666), info.Mode().Perm())
+		} else {
+			assert.Equal(t, os.FileMode(0755), info.Mode().Perm())
+		}
 	})
 }
 

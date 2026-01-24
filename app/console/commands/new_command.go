@@ -227,7 +227,7 @@ func (r *NewCommand) initProject(path string) error {
 
 	if artisan := filepath.Join(path, "artisan"); file.Exists(artisan) {
 		if err := os.Chmod(artisan, 0755); err != nil {
-			return fmt.Errorf("failed to set artisan execute permission: %s\n", err)
+			return fmt.Errorf("failed to set artisan execute permission: %s", err)
 		}
 	}
 
