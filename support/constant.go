@@ -1,6 +1,6 @@
 package support
 
-const Version string = "v1.5.0"
+const Version string = "v1.17.0"
 const DefaultModuleName = "goravel"
 const WelcomeHeading = `
    ___   ___   ___    _ __   __ ___  _    
