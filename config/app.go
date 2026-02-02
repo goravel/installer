@@ -11,7 +11,7 @@ import (
 func Boot() {}
 
 func init() {
-	support.DontVerifyEnvFileExists = true
+	support.DontVerifyAppKey = true
 
 	config := facades.Config()
 	config.Add("app", map[string]any{
