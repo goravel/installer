@@ -9,7 +9,6 @@ import (
 	"github.com/goravel/framework/contracts/binding"
 	contractsconsole "github.com/goravel/framework/contracts/console"
 	"github.com/goravel/framework/contracts/foundation"
-	"github.com/goravel/framework/support/color"
 
 	"github.com/goravel/installer/app/console/commands"
 	"github.com/goravel/installer/support"
@@ -36,11 +35,6 @@ func (r *ArtisanServiceProvider) Register(app foundation.Application) {
 
 func (r *ArtisanServiceProvider) Boot(app foundation.Application) {
 	artisanFacade := app.MakeArtisan()
-	if artisanFacade == nil {
-		color.Warningln("Artisan Facade is not initialized. Skipping command registration.")
-		return
-	}
-
 	artisanFacade.Register([]contractsconsole.Command{
 		commands.NewNewCommand(),
 		commands.NewUpgradeCommand(),
