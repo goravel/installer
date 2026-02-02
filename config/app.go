@@ -1,6 +1,7 @@
 package config
 
 import (
+	"github.com/goravel/framework/support"
 	"github.com/goravel/framework/support/carbon"
 
 	"github.com/goravel/installer/app/facades"
@@ -10,6 +11,8 @@ import (
 func Boot() {}
 
 func init() {
+	support.DontVerifyEnvFileExists = true
+
 	config := facades.Config()
 	config.Add("app", map[string]any{
 		// Application Name

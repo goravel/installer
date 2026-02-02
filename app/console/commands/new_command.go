@@ -225,6 +225,10 @@ func (r *NewCommand) initProject(path string) error {
 		return fmt.Errorf("failed to remove .github: %s", err)
 	}
 
+	if err := file.Remove(filepath.Join(path, "main_test.go")); err != nil {
+		return fmt.Errorf("failed to remove main_test.go: %s", err)
+	}
+
 	if artisan := filepath.Join(path, "artisan"); file.Exists(artisan) {
 		if err := os.Chmod(artisan, 0755); err != nil {
 			return fmt.Errorf("failed to set artisan execute permission: %s", err)
