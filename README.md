@@ -14,6 +14,7 @@ Goravel Installer is a command-line tool that helps you to install the Goravel f
 
 | goravel/installer | goravel/framework |
 |-------------------|-------------------|
+| v1.17.x           | v1.17.x           |
 | v1.4.x            | v1.16.x           |
 | v1.1.x            | v1.15.x           |
 | v1.0.x            | v1.14.x           |
