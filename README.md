@@ -32,6 +32,22 @@ go install github.com/goravel/installer/goravel@latest
 goravel new blog
 ```
 
+## Skills
+
+```bash
+# Install all Goravel agent skills to ~/.agents/skills
+goravel skill:install
+
+# Install all Goravel agent skills to a custom folder
+goravel skill:install --path ~/goravel-skills
+
+# Install specific skills
+goravel skill:install goravel-testing goravel-planning
+
+# Overwrite existing skills
+goravel skill:install --force goravel-testing
+```
+
 ## Upgrade
 
 ```bash
