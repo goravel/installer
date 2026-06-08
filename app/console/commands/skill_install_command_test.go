@@ -161,6 +161,7 @@ func (s *SkillInstallCommandTestSuite) TestHandleCloneFailure() {
 	destination := filepath.Join(s.T().TempDir(), "skills")
 	cloneError := errors.New("clone failed")
 
+	mockProcess.EXPECT().Quietly().Return(mockProcess).Once()
 	mockProcess.EXPECT().WithSpinner("Downloading Goravel agents").Return(mockProcess).Once()
 	mockProcessResult := mocksprocess.NewResult(s.T())
 	mockProcessResult.EXPECT().Failed().Return(true).Once()
@@ -197,6 +198,7 @@ func setHomeDir(t *testing.T, home string) {
 func expectAgentsClone(t *testing.T, mockProcess *mocksprocess.Process, skills map[string]string) {
 	t.Helper()
 
+	mockProcess.EXPECT().Quietly().Return(mockProcess).Once()
 	mockProcess.EXPECT().WithSpinner("Downloading Goravel agents").Return(mockProcess).Once()
 	mockProcessResult := mocksprocess.NewResult(t)
 	mockProcessResult.EXPECT().Failed().Return(false).Once()
