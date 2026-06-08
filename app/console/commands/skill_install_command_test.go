@@ -20,7 +20,7 @@ func TestSkillInstallCommandGetDestination(t *testing.T) {
 
 	t.Run("default path", func(t *testing.T) {
 		home := t.TempDir()
-		t.Setenv("HOME", home)
+		setHomeDir(t, home)
 
 		mockContext := mocksconsole.NewContext(t)
 		mockContext.EXPECT().Option("path").Return("").Once()
@@ -32,7 +32,7 @@ func TestSkillInstallCommandGetDestination(t *testing.T) {
 
 	t.Run("custom home path", func(t *testing.T) {
 		home := t.TempDir()
-		t.Setenv("HOME", home)
+		setHomeDir(t, home)
 
 		mockContext := mocksconsole.NewContext(t)
 		mockContext.EXPECT().Option("path").Return("~/goravel-skills").Once()
@@ -168,6 +168,13 @@ func newSkillInstallContext(t *testing.T, destination string, skills []string, f
 	mockContext.EXPECT().OptionBool("force").Return(force).Once()
 
 	return mockContext
+}
+
+func setHomeDir(t *testing.T, home string) {
+	t.Helper()
+
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
 }
 
 func expectAgentsClone(t *testing.T, mockProcess *mocksprocess.Process, skills map[string]string) {
