@@ -154,7 +154,7 @@ func (r *SkillInstallCommand) installSkills(destination string, skillNames []str
 }
 
 func (r *SkillInstallCommand) cloneAgents(path string) error {
-	res := facades.Process().WithSpinner("Downloading Goravel agents").Run("git", "clone", "--depth=1", agentsRepo, path)
+	res := facades.Process().Quietly().WithSpinner("Downloading Goravel agents").Run("git", "clone", "--depth=1", agentsRepo, path)
 	if res.Failed() {
 		return fmt.Errorf("failed to clone goravel agents: %v", res.Error())
 	}
