@@ -283,7 +283,7 @@ func copyDirectory(source, target string) error {
 }
 
 func expandHomePath(path string) (string, error) {
-	if path != "~" && !strings.HasPrefix(path, "~/") {
+	if path != "~" && !strings.HasPrefix(path, "~/") && !strings.HasPrefix(path, `~\`) {
 		return path, nil
 	}
 

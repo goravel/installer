@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -11,152 +12,168 @@ import (
 	mocksprocess "github.com/goravel/framework/mocks/process"
 	"github.com/goravel/framework/support/color"
 	frameworkmock "github.com/goravel/framework/testing/mock"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/suite"
 )
 
-func TestSkillInstallCommandGetDestination(t *testing.T) {
-	skillInstallCommand := NewSkillInstallCommand()
-
-	t.Run("default path", func(t *testing.T) {
-		home := t.TempDir()
-		setHomeDir(t, home)
-
-		mockContext := mocksconsole.NewContext(t)
-		mockContext.EXPECT().Option("path").Return("").Once()
-
-		destination, err := skillInstallCommand.getDestination(mockContext)
-		assert.NoError(t, err)
-		assert.Equal(t, filepath.Join(home, ".agents", "skills"), destination)
-	})
-
-	t.Run("custom home path", func(t *testing.T) {
-		home := t.TempDir()
-		setHomeDir(t, home)
-
-		mockContext := mocksconsole.NewContext(t)
-		mockContext.EXPECT().Option("path").Return("~/goravel-skills").Once()
-
-		destination, err := skillInstallCommand.getDestination(mockContext)
-		assert.NoError(t, err)
-		assert.Equal(t, filepath.Join(home, "goravel-skills"), destination)
-	})
+type SkillInstallCommandTestSuite struct {
+	suite.Suite
+	skillInstallCommand *SkillInstallCommand
 }
 
-func TestSkillInstallCommandHandleInstallAll(t *testing.T) {
-	skillInstallCommand := NewSkillInstallCommand()
-	mockProcess := frameworkmock.Factory().Process()
-	destination := filepath.Join(t.TempDir(), "skills")
+func TestSkillInstallCommandTestSuite(t *testing.T) {
+	suite.Run(t, &SkillInstallCommandTestSuite{})
+}
 
-	expectAgentsClone(t, mockProcess, map[string]string{
+func (s *SkillInstallCommandTestSuite) SetupTest() {
+	s.skillInstallCommand = NewSkillInstallCommand()
+}
+
+func (s *SkillInstallCommandTestSuite) TestGetDestinationDefaultPath() {
+	home := s.T().TempDir()
+	setHomeDir(s.T(), home)
+
+	mockContext := mocksconsole.NewContext(s.T())
+	mockContext.EXPECT().Option("path").Return("").Once()
+
+	destination, err := s.skillInstallCommand.getDestination(mockContext)
+	s.NoError(err)
+	s.Equal(filepath.Join(home, ".agents", "skills"), destination)
+}
+
+func (s *SkillInstallCommandTestSuite) TestGetDestinationCustomHomePath() {
+	home := s.T().TempDir()
+	setHomeDir(s.T(), home)
+
+	mockContext := mocksconsole.NewContext(s.T())
+	mockContext.EXPECT().Option("path").Return("~/goravel-skills").Once()
+
+	destination, err := s.skillInstallCommand.getDestination(mockContext)
+	s.NoError(err)
+	s.Equal(filepath.Join(home, "goravel-skills"), destination)
+}
+
+func (s *SkillInstallCommandTestSuite) TestGetDestinationCustomWindowsHomePath() {
+	home := s.T().TempDir()
+	setHomeDir(s.T(), home)
+
+	mockContext := mocksconsole.NewContext(s.T())
+	mockContext.EXPECT().Option("path").Return(`~\goravel-skills`).Once()
+
+	destination, err := s.skillInstallCommand.getDestination(mockContext)
+	s.NoError(err)
+	s.Equal(filepath.Join(home, "goravel-skills"), destination)
+}
+
+func (s *SkillInstallCommandTestSuite) TestHandleInstallAll() {
+	mockProcess := frameworkmock.Factory().Process()
+	destination := filepath.Join(s.T().TempDir(), "skills")
+
+	expectAgentsClone(s.T(), mockProcess, map[string]string{
 		"goravel-planning": "planning skill",
 		"goravel-testing":  "testing skill",
 	})
 
-	mockContext := newSkillInstallContext(t, destination, nil, false)
+	mockContext := newSkillInstallContext(s.T(), destination, nil, false)
 	captureOutput := color.CaptureOutput(func(w io.Writer) {
-		assert.NoError(t, skillInstallCommand.Handle(mockContext))
+		s.NoError(s.skillInstallCommand.Handle(mockContext))
 	})
 
-	assert.Contains(t, captureOutput, "Installed 2 Goravel skill(s)")
-	assert.Equal(t, "planning skill", readSkillContent(t, destination, "goravel-planning"))
-	assert.Equal(t, "testing skill", readSkillContent(t, destination, "goravel-testing"))
+	s.Contains(captureOutput, "Installed 2 Goravel skill(s)")
+	s.Equal("planning skill", readSkillContent(s.T(), destination, "goravel-planning"))
+	s.Equal("testing skill", readSkillContent(s.T(), destination, "goravel-testing"))
 }
 
-func TestSkillInstallCommandHandleInstallSelected(t *testing.T) {
-	skillInstallCommand := NewSkillInstallCommand()
+func (s *SkillInstallCommandTestSuite) TestHandleInstallSelected() {
 	mockProcess := frameworkmock.Factory().Process()
-	destination := filepath.Join(t.TempDir(), "skills")
+	destination := filepath.Join(s.T().TempDir(), "skills")
 
-	expectAgentsClone(t, mockProcess, map[string]string{
+	expectAgentsClone(s.T(), mockProcess, map[string]string{
 		"goravel-planning": "planning skill",
 		"goravel-testing":  "testing skill",
 	})
 
-	mockContext := newSkillInstallContext(t, destination, []string{"goravel-testing"}, false)
+	mockContext := newSkillInstallContext(s.T(), destination, []string{"goravel-testing"}, false)
 	captureOutput := color.CaptureOutput(func(w io.Writer) {
-		assert.NoError(t, skillInstallCommand.Handle(mockContext))
+		s.NoError(s.skillInstallCommand.Handle(mockContext))
 	})
 
-	assert.Contains(t, captureOutput, "Installed 1 Goravel skill(s)")
-	assert.Equal(t, "testing skill", readSkillContent(t, destination, "goravel-testing"))
-	assert.NoFileExists(t, filepath.Join(destination, "goravel-planning", "SKILL.md"))
+	s.Contains(captureOutput, "Installed 1 Goravel skill(s)")
+	s.Equal("testing skill", readSkillContent(s.T(), destination, "goravel-testing"))
+	s.NoFileExists(filepath.Join(destination, "goravel-planning", "SKILL.md"))
 }
 
-func TestSkillInstallCommandHandleMissingSkill(t *testing.T) {
-	skillInstallCommand := NewSkillInstallCommand()
+func (s *SkillInstallCommandTestSuite) TestHandleMissingSkill() {
 	mockProcess := frameworkmock.Factory().Process()
-	destination := filepath.Join(t.TempDir(), "skills")
+	destination := filepath.Join(s.T().TempDir(), "skills")
 
-	expectAgentsClone(t, mockProcess, map[string]string{
+	expectAgentsClone(s.T(), mockProcess, map[string]string{
 		"goravel-testing": "testing skill",
 	})
 
-	mockContext := newSkillInstallContext(t, destination, []string{"missing-skill"}, false)
+	mockContext := newSkillInstallContext(s.T(), destination, []string{"missing-skill"}, false)
 	captureOutput := color.CaptureOutput(func(w io.Writer) {
-		assert.NoError(t, skillInstallCommand.Handle(mockContext))
+		s.NoError(s.skillInstallCommand.Handle(mockContext))
 	})
 
-	assert.Contains(t, captureOutput, `skill "missing-skill" does not exist`)
-	assert.NoDirExists(t, destination)
+	s.Contains(captureOutput, `skill "missing-skill" does not exist`)
+	s.NoDirExists(destination)
 }
 
-func TestSkillInstallCommandHandleSkipExisting(t *testing.T) {
-	skillInstallCommand := NewSkillInstallCommand()
+func (s *SkillInstallCommandTestSuite) TestHandleSkipExisting() {
 	mockProcess := frameworkmock.Factory().Process()
-	destination := filepath.Join(t.TempDir(), "skills")
+	destination := filepath.Join(s.T().TempDir(), "skills")
 
-	writeSkillContent(t, destination, "goravel-testing", "old skill")
-	expectAgentsClone(t, mockProcess, map[string]string{
+	writeSkillContent(s.T(), destination, "goravel-testing", "old skill")
+	expectAgentsClone(s.T(), mockProcess, map[string]string{
 		"goravel-testing": "new skill",
 	})
 
-	mockContext := newSkillInstallContext(t, destination, []string{"goravel-testing"}, false)
+	mockContext := newSkillInstallContext(s.T(), destination, []string{"goravel-testing"}, false)
 	captureOutput := color.CaptureOutput(func(w io.Writer) {
-		assert.NoError(t, skillInstallCommand.Handle(mockContext))
+		s.NoError(s.skillInstallCommand.Handle(mockContext))
 	})
 
-	assert.Contains(t, captureOutput, "Skipped 1 existing Goravel skill(s)")
-	assert.Equal(t, "old skill", readSkillContent(t, destination, "goravel-testing"))
+	s.Contains(captureOutput, "Skipped 1 existing Goravel skill(s)")
+	s.Equal("old skill", readSkillContent(s.T(), destination, "goravel-testing"))
 }
 
-func TestSkillInstallCommandHandleForceExisting(t *testing.T) {
-	skillInstallCommand := NewSkillInstallCommand()
+func (s *SkillInstallCommandTestSuite) TestHandleForceExisting() {
 	mockProcess := frameworkmock.Factory().Process()
-	destination := filepath.Join(t.TempDir(), "skills")
+	destination := filepath.Join(s.T().TempDir(), "skills")
 
-	writeSkillContent(t, destination, "goravel-testing", "old skill")
-	expectAgentsClone(t, mockProcess, map[string]string{
+	writeSkillContent(s.T(), destination, "goravel-testing", "old skill")
+	expectAgentsClone(s.T(), mockProcess, map[string]string{
 		"goravel-testing": "new skill",
 	})
 
-	mockContext := newSkillInstallContext(t, destination, []string{"goravel-testing"}, true)
+	mockContext := newSkillInstallContext(s.T(), destination, []string{"goravel-testing"}, true)
 	captureOutput := color.CaptureOutput(func(w io.Writer) {
-		assert.NoError(t, skillInstallCommand.Handle(mockContext))
+		s.NoError(s.skillInstallCommand.Handle(mockContext))
 	})
 
-	assert.Contains(t, captureOutput, "Installed 1 Goravel skill(s)")
-	assert.Equal(t, "new skill", readSkillContent(t, destination, "goravel-testing"))
+	s.Contains(captureOutput, "Installed 1 Goravel skill(s)")
+	s.Equal("new skill", readSkillContent(s.T(), destination, "goravel-testing"))
 }
 
-func TestSkillInstallCommandHandleCloneFailure(t *testing.T) {
-	skillInstallCommand := NewSkillInstallCommand()
+func (s *SkillInstallCommandTestSuite) TestHandleCloneFailure() {
 	mockProcess := frameworkmock.Factory().Process()
-	destination := filepath.Join(t.TempDir(), "skills")
+	destination := filepath.Join(s.T().TempDir(), "skills")
+	cloneError := errors.New("clone failed")
 
 	mockProcess.EXPECT().WithSpinner("Downloading Goravel agents").Return(mockProcess).Once()
-	mockProcessResult := mocksprocess.NewResult(t)
+	mockProcessResult := mocksprocess.NewResult(s.T())
 	mockProcessResult.EXPECT().Failed().Return(true).Once()
-	mockProcessResult.EXPECT().Error().Return(assert.AnError).Once()
+	mockProcessResult.EXPECT().Error().Return(cloneError).Once()
 	mockProcess.EXPECT().Run("git", "clone", "--depth=1", agentsRepo, mock.Anything).Return(mockProcessResult).Once()
 
-	mockContext := newSkillInstallContext(t, destination, nil, false)
+	mockContext := newSkillInstallContext(s.T(), destination, nil, false)
 	captureOutput := color.CaptureOutput(func(w io.Writer) {
-		assert.NoError(t, skillInstallCommand.Handle(mockContext))
+		s.NoError(s.skillInstallCommand.Handle(mockContext))
 	})
 
-	assert.Contains(t, captureOutput, "failed to clone goravel agents")
-	assert.NoDirExists(t, destination)
+	s.Contains(captureOutput, "failed to clone goravel agents: clone failed")
+	s.NoDirExists(destination)
 }
 
 func newSkillInstallContext(t *testing.T, destination string, skills []string, force bool) *mocksconsole.Context {
@@ -194,7 +211,9 @@ func createAgentsRepo(t *testing.T, path string, skills map[string]string) {
 	t.Helper()
 
 	skillsPath := filepath.Join(path, "skills")
-	assert.NoError(t, os.MkdirAll(skillsPath, 0755))
+	if err := os.MkdirAll(skillsPath, 0755); err != nil {
+		t.Fatalf("os.MkdirAll(%q) = %v, want nil", skillsPath, err)
+	}
 	for skill, content := range skills {
 		writeSkillContent(t, skillsPath, skill, content)
 	}
@@ -203,8 +222,11 @@ func createAgentsRepo(t *testing.T, path string, skills map[string]string) {
 func readSkillContent(t *testing.T, skillsPath, skill string) string {
 	t.Helper()
 
-	content, err := os.ReadFile(filepath.Join(skillsPath, skill, "SKILL.md"))
-	assert.NoError(t, err)
+	path := filepath.Join(skillsPath, skill, "SKILL.md")
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("os.ReadFile(%q) = %v, want nil", path, err)
+	}
 
 	return string(content)
 }
@@ -213,6 +235,11 @@ func writeSkillContent(t *testing.T, skillsPath, skill, content string) {
 	t.Helper()
 
 	skillPath := filepath.Join(skillsPath, skill)
-	assert.NoError(t, os.MkdirAll(skillPath, 0755))
-	assert.NoError(t, os.WriteFile(filepath.Join(skillPath, "SKILL.md"), []byte(content), 0644))
+	if err := os.MkdirAll(skillPath, 0755); err != nil {
+		t.Fatalf("os.MkdirAll(%q) = %v, want nil", skillPath, err)
+	}
+	path := filepath.Join(skillPath, "SKILL.md")
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatalf("os.WriteFile(%q) = %v, want nil", path, err)
+	}
 }
