@@ -120,7 +120,7 @@ func (r *SkillInstallCommand) installSkills(destination string, skillNames []str
 	}()
 
 	repoPath := filepath.Join(tmpDir, "agents")
-	if err := r.cloneAgents(repoPath); err != nil {
+	if err := cloneAgents(repoPath); err != nil {
 		return 0, 0, err
 	}
 
@@ -153,7 +153,7 @@ func (r *SkillInstallCommand) installSkills(destination string, skillNames []str
 	return installed, skipped, nil
 }
 
-func (r *SkillInstallCommand) cloneAgents(path string) error {
+func cloneAgents(path string) error {
 	res := facades.Process().Quietly().WithSpinner("Downloading Goravel agents").Run("git", "clone", "--depth=1", agentsRepo, path)
 	if res.Failed() {
 		return fmt.Errorf("failed to clone goravel agents: %v", res.Error())

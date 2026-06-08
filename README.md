@@ -35,6 +35,9 @@ goravel new blog
 ## Skills
 
 ```bash
+# List available Goravel agent skills
+goravel skill:list
+
 # Install all Goravel agent skills to ~/.agents/skills
 goravel skill:install
 
