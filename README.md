@@ -38,6 +38,9 @@ goravel new blog
 # List available Goravel agent skills
 goravel skill:list
 
+# List available Goravel agent skills with descriptions
+goravel skill:list --detail
+
 # Install all Goravel agent skills to ~/.agents/skills
 goravel skill:install
 
