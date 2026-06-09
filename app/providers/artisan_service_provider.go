@@ -38,6 +38,7 @@ func (r *ArtisanServiceProvider) Boot(app foundation.Application) {
 	artisanFacade.Register([]contractsconsole.Command{
 		commands.NewNewCommand(),
 		commands.NewSkillInstallCommand(),
+		commands.NewSkillListCommand(),
 		commands.NewUpgradeCommand(),
 	})
 }
@@ -73,7 +74,7 @@ func NewApplication() contractsconsole.Artisan {
 
 func (r *Application) Register(commands []contractsconsole.Command) {
 	for _, item := range commands {
-		if slices.Contains([]string{"list", "new", "skill:install", "upgrade"}, item.Signature()) {
+		if slices.Contains([]string{"list", "new", "skill:install", "skill:list", "upgrade"}, item.Signature()) {
 			r.commands = append(r.commands, item)
 		}
 	}
