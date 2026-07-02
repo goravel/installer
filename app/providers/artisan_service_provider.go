@@ -44,7 +44,6 @@ func (r *ArtisanServiceProvider) Boot(app foundation.Application) {
 
 type Application struct {
 	*console.Application
-	commands   []contractsconsole.Command
 	name       string
 	usage      string
 	usageText  string
