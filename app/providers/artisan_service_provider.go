@@ -3,7 +3,6 @@ package providers
 import (
 	"io"
 	"os"
-	"slices"
 
 	"github.com/goravel/framework/console"
 	"github.com/goravel/framework/contracts/binding"
@@ -70,14 +69,4 @@ func NewApplication() contractsconsole.Artisan {
 		version:     version,
 		writer:      os.Stdout,
 	}
-}
-
-func (r *Application) Register(commands []contractsconsole.Command) {
-	for _, item := range commands {
-		if slices.Contains([]string{"list", "new", "skill:install", "skill:list", "upgrade"}, item.Signature()) {
-			r.commands = append(r.commands, item)
-		}
-	}
-
-	r.SetCommands(r.commands)
 }
