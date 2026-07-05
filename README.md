@@ -13,7 +13,6 @@ Goravel Installer is a command-line tool that helps you to install the Goravel f
 ## Installation
 
 ```bash
-# Install the latest version of the goravel installer
 go install github.com/goravel/installer/goravel@latest
 ```
 
