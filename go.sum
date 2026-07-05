@@ -115,8 +115,8 @@ github.com/gookit/color v1.4.2/go.mod h1:fqRyamkC1W8uxl+lxCQxOT09l/vYfZ+QeiX3rKQ
 github.com/gookit/color v1.5.0/go.mod h1:43aQb+Zerm/BWh2GnrgOQm7ffz7tvQXEKV6BFMl7wAo=
 github.com/gookit/color v1.6.0 h1:JjJXBTk1ETNyqyilJhkTXJYYigHG24TM9Xa2M1xAhRA=
 github.com/gookit/color v1.6.0/go.mod h1:9ACFc7/1IpHGBW8RwuDm/0YEnhg3dwwXpoMsmtyHfjs=
-github.com/goravel/framework v1.17.2-0.20260629045658-ca1f3f2b35c6 h1:rCt9mlbVCuwcVoF1xDzONfjCISj08ZEZKn+Jf01a2lg=
-github.com/goravel/framework v1.17.2-0.20260629045658-ca1f3f2b35c6/go.mod h1:7nTfWdu987t+MmB1s+TtqbuJJLngmjCjsMbw3FQLNcA=
+github.com/goravel/framework v1.17.2-0.20260704091648-a554ced468ca h1:glscKyd5sKKK8+5z1A7mGgjiUJKOFTL0ViUqTdcmezs=
+github.com/goravel/framework v1.17.2-0.20260704091648-a554ced468ca/go.mod h1:7nTfWdu987t+MmB1s+TtqbuJJLngmjCjsMbw3FQLNcA=
 github.com/jinzhu/inflection v1.0.0 h1:K317FqzuhWc8YvSVlFMCCUb36O/S9MCKRDI7QkRKD/E=
 github.com/jinzhu/inflection v1.0.0/go.mod h1:h+uFLlag+Qp1Va5pdKtLDYj+kHp5pxUVkryuEj+Srlc=
 github.com/jinzhu/now v1.1.5 h1:/o9tlHleP7gOFmsnYNz3RGnqzefHA47wQpKrrdTIwXQ=
