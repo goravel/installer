@@ -36,6 +36,7 @@ func (r *ArtisanServiceProvider) Boot(app foundation.Application) {
 	artisanFacade := app.MakeArtisan()
 	artisanFacade.Register([]contractsconsole.Command{
 		commands.NewNewCommand(),
+		commands.NewAgentInstallCommand(),
 		commands.NewSkillInstallCommand(),
 		commands.NewSkillListCommand(),
 		commands.NewUpgradeCommand(),
