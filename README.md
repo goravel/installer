@@ -32,7 +32,9 @@ goravel skill:list
 # List available Goravel agent skills with descriptions
 goravel skill:list --detail
 
-# Install all Goravel agent skills to ~/.agents/skills
+# Install all Goravel agent skills for OpenCode
+# Destination (first match): $OPENCODE_CONFIG_DIR/skills, $XDG_CONFIG_HOME/opencode/skills,
+#                            ~/.config/opencode/skills
 goravel skill:install
 
 # Install all Goravel agent skills to a custom folder
