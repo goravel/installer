@@ -32,13 +32,41 @@ func (s *SkillInstallCommandTestSuite) SetupTest() {
 func (s *SkillInstallCommandTestSuite) TestGetDestinationDefaultPath() {
 	home := s.T().TempDir()
 	setHomeDir(s.T(), home)
+	s.T().Setenv(opencodeConfigEnv, "")
+	s.T().Setenv(xdgConfigEnv, "")
 
 	mockContext := mocksconsole.NewContext(s.T())
 	mockContext.EXPECT().Option("path").Return("").Once()
 
 	destination, err := s.skillInstallCommand.getDestination(mockContext)
 	s.NoError(err)
-	s.Equal(filepath.Join(home, ".agents", "skills"), destination)
+	s.Equal(filepath.Join(home, ".config", "opencode", "skills"), destination)
+}
+
+func (s *SkillInstallCommandTestSuite) TestGetDestinationOpencodeConfigDir() {
+	configDir := s.T().TempDir()
+	s.T().Setenv(opencodeConfigEnv, configDir)
+	s.T().Setenv(xdgConfigEnv, s.T().TempDir())
+
+	mockContext := mocksconsole.NewContext(s.T())
+	mockContext.EXPECT().Option("path").Return("").Once()
+
+	destination, err := s.skillInstallCommand.getDestination(mockContext)
+	s.NoError(err)
+	s.Equal(filepath.Join(configDir, "skills"), destination)
+}
+
+func (s *SkillInstallCommandTestSuite) TestGetDestinationXDGConfigHome() {
+	configHome := s.T().TempDir()
+	s.T().Setenv(opencodeConfigEnv, "")
+	s.T().Setenv(xdgConfigEnv, configHome)
+
+	mockContext := mocksconsole.NewContext(s.T())
+	mockContext.EXPECT().Option("path").Return("").Once()
+
+	destination, err := s.skillInstallCommand.getDestination(mockContext)
+	s.NoError(err)
+	s.Equal(filepath.Join(configHome, "opencode", "skills"), destination)
 }
 
 func (s *SkillInstallCommandTestSuite) TestGetDestinationCustomHomePath() {
