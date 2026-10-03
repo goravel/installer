@@ -15,7 +15,11 @@ import (
 	"github.com/goravel/installer/app/facades"
 )
 
-const agentsRepo = "https://github.com/goravel/agents.git"
+const (
+	agentsRepo        = "https://github.com/goravel/agents.git"
+	opencodeConfigEnv = "OPENCODE_CONFIG_DIR"
+	xdgConfigEnv      = "XDG_CONFIG_HOME"
+)
 
 type SkillInstallCommand struct{}
 
@@ -30,7 +34,7 @@ func (r *SkillInstallCommand) Signature() string {
 
 // Description The console command description.
 func (r *SkillInstallCommand) Description() string {
-	return "Install Goravel agent skills"
+	return "Install Goravel agent skills for OpenCode"
 }
 
 // Extend The console command extend.
@@ -88,26 +92,50 @@ func (r *SkillInstallCommand) Handle(ctx console.Context) error {
 func (r *SkillInstallCommand) getDestination(ctx console.Context) (string, error) {
 	destination := ctx.Option("path")
 	if destination == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return "", fmt.Errorf("failed to get home directory: %w", err)
-		}
-
-		destination = filepath.Join(home, ".agents", "skills")
-	} else {
-		expanded, err := expandHomePath(destination)
+		var err error
+		destination, err = opencodeSkillsPath()
 		if err != nil {
 			return "", err
 		}
-		destination = expanded
 	}
 
-	destination, err := filepath.Abs(destination)
+	expanded, err := expandHomePath(destination)
+	if err != nil {
+		return "", err
+	}
+
+	destination, err = filepath.Abs(expanded)
 	if err != nil {
 		return "", fmt.Errorf("failed to resolve skills path: %w", err)
 	}
 
 	return destination, nil
+}
+
+func opencodeConfigDir() (string, error) {
+	if configDir := os.Getenv(opencodeConfigEnv); configDir != "" {
+		return configDir, nil
+	}
+
+	if configHome := os.Getenv(xdgConfigEnv); configHome != "" {
+		return filepath.Join(configHome, "opencode"), nil
+	}
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("failed to get home directory: %w", err)
+	}
+
+	return filepath.Join(home, ".config", "opencode"), nil
+}
+
+func opencodeSkillsPath() (string, error) {
+	configDir, err := opencodeConfigDir()
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Join(configDir, "skills"), nil
 }
 
 func (r *SkillInstallCommand) installSkills(destination string, skillNames []string, force bool) (int, int, error) {
