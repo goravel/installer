@@ -46,6 +46,21 @@ goravel skill:install goravel-testing goravel-planning
 goravel skill:install --force goravel-testing
 ```
 
+## Agents
+
+```bash
+# Install all Goravel agents (including subagents) for OpenCode
+# Destination (first match): $OPENCODE_CONFIG_DIR/agents, $XDG_CONFIG_HOME/opencode/agents,
+#                            ~/.config/opencode/agents
+goravel agent:install
+
+# Install to a custom folder
+goravel agent:install --path ~/goravel-agents
+
+# Overwrite existing agents
+goravel agent:install --force
+```
+
 ## Upgrade
 
 ```bash
