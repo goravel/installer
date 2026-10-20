@@ -16,6 +16,7 @@ import (
 	"github.com/goravel/framework/errors"
 	"github.com/goravel/framework/support/color"
 	"github.com/goravel/framework/support/file"
+	"github.com/goravel/framework/support/str"
 
 	"github.com/goravel/installer/app/facades"
 	"github.com/goravel/installer/support"
@@ -26,6 +27,7 @@ var (
 	projectNameRegexp = regexp.MustCompile(`^[\w.-]+$`)
 	goModModuleRegexp = regexp.MustCompile(`^module\s+goravel\b`)
 	goImportRegexp    = regexp.MustCompile(`"goravel/([^"]+)"`)
+	appKeyRegexp      = regexp.MustCompile(`(?m)^APP_KEY=[^\r\n]*`)
 
 	// lookPath is replaced in tests to simulate a missing tool.
 	lookPath = exec.LookPath
@@ -310,17 +312,34 @@ func (r *NewCommand) initProject(path string) error {
 
 	color.Successln("Installed dependencies")
 
-	if err := file.Copy(filepath.Join(path, ".env.example"), filepath.Join(path, ".env")); err != nil {
+	if err := writeEnvFile(path); err != nil {
 		return fmt.Errorf("failed to generate .env file: %w", err)
 	}
 
-	color.Successln("Generated .env file")
-
-	if res := facades.Process().WithSpinner("Generating application key").Path(path).Run("go", "run", ".", "artisan", "key:generate"); res.Failed() {
-		return fmt.Errorf("failed to generate app key: %w", res.Error())
-	}
+	color.Successln("Generated .env file with an application key")
 
 	return nil
+}
+
+// writeEnvFile creates .env from .env.example with a new APP_KEY. It sets the
+// key directly instead of running key:generate, which would build the whole
+// project first and doesn't report its own errors.
+func writeEnvFile(path string) error {
+	content, err := os.ReadFile(filepath.Join(path, ".env.example"))
+	if err != nil {
+		return err
+	}
+
+	// str.Random is what key:generate uses, so the key looks the same.
+	appKey := "APP_KEY=" + str.Random(32)
+	env := string(content)
+	if appKeyRegexp.MatchString(env) {
+		env = appKeyRegexp.ReplaceAllLiteralString(env, appKey)
+	} else {
+		env = strings.TrimRight(env, "\n") + "\n" + appKey + "\n"
+	}
+
+	return os.WriteFile(filepath.Join(path, ".env"), []byte(env), 0644)
 }
 
 func (r *NewCommand) installFacades(path string) error {

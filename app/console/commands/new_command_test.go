@@ -301,13 +301,6 @@ func main() {}`), 0644)
 	mockModTidyResult.EXPECT().Failed().Return(false).Once()
 	mockProcess.EXPECT().Run("go", "mod", "tidy").Return(mockModTidyResult).Once()
 
-	// Mock initProject - key:generate
-	mockProcess.EXPECT().WithSpinner("Generating application key").Return(mockProcess).Once()
-	mockProcess.EXPECT().Path(mock.Anything).Return(mockProcess).Once()
-	mockKeyGenResult := mocksprocess.NewResult(t)
-	mockKeyGenResult.EXPECT().Failed().Return(false).Once()
-	mockProcess.EXPECT().Run("go", "run", ".", "artisan", "key:generate").Return(mockKeyGenResult).Once()
-
 	// Execute the Handle function
 	err = newCommand.Handle(mockContext)
 	assert.Nil(t, err)
@@ -370,13 +363,6 @@ func TestInitProject(t *testing.T) {
 		mockModTidyResult.EXPECT().Failed().Return(false).Once()
 		mockProcess.EXPECT().Run("go", "mod", "tidy").Return(mockModTidyResult).Once()
 
-		// Mock key:generate
-		mockProcess.EXPECT().WithSpinner("Generating application key").Return(mockProcess).Once()
-		mockProcess.EXPECT().Path(tmpDir).Return(mockProcess).Once()
-		mockKeyGenResult := mocksprocess.NewResult(t)
-		mockKeyGenResult.EXPECT().Failed().Return(false).Once()
-		mockProcess.EXPECT().Run("go", "run", ".", "artisan", "key:generate").Return(mockKeyGenResult).Once()
-
 		err = newCommand.initProject(tmpDir)
 		assert.Nil(t, err)
 
@@ -390,6 +376,7 @@ func TestInitProject(t *testing.T) {
 		envContent, err := os.ReadFile(envFile)
 		assert.Nil(t, err)
 		assert.Contains(t, string(envContent), "APP_NAME=TestApp")
+		assert.Regexp(t, `(?m)^APP_KEY=[0-9a-zA-Z]{32}$`, string(envContent))
 	})
 
 	t.Run("fails when go mod tidy fails", func(t *testing.T) {
@@ -420,20 +407,11 @@ func TestInitProject(t *testing.T) {
 		assert.Contains(t, err.Error(), "failed to install dependencies")
 	})
 
-	t.Run("fails when key:generate fails", func(t *testing.T) {
+	t.Run("fails when .env.example is missing", func(t *testing.T) {
 		mockFactory := frameworkmock.Factory()
 		mockProcess := mockFactory.Process()
 
-		tmpDir, err := os.MkdirTemp("", "test-init-project-keyfail")
-		assert.Nil(t, err)
-		defer func() {
-			_ = os.RemoveAll(tmpDir)
-		}()
-
-		// Create .env.example
-		envExample := filepath.Join(tmpDir, ".env.example")
-		err = os.WriteFile(envExample, []byte("APP_NAME=TestApp"), 0644)
-		assert.Nil(t, err)
+		tmpDir := t.TempDir()
 
 		// Mock go mod tidy success
 		mockProcess.EXPECT().WithSpinner("Installing dependencies").Return(mockProcess).Once()
@@ -442,17 +420,8 @@ func TestInitProject(t *testing.T) {
 		mockModTidyResult.EXPECT().Failed().Return(false).Once()
 		mockProcess.EXPECT().Run("go", "mod", "tidy").Return(mockModTidyResult).Once()
 
-		// Mock key:generate failure
-		mockProcess.EXPECT().WithSpinner("Generating application key").Return(mockProcess).Once()
-		mockProcess.EXPECT().Path(tmpDir).Return(mockProcess).Once()
-		mockKeyGenResult := mocksprocess.NewResult(t)
-		mockKeyGenResult.EXPECT().Failed().Return(true).Once()
-		mockKeyGenResult.EXPECT().Error().Return(assert.AnError).Once()
-		mockProcess.EXPECT().Run("go", "run", ".", "artisan", "key:generate").Return(mockKeyGenResult).Once()
-
-		err = newCommand.initProject(tmpDir)
-		assert.NotNil(t, err)
-		assert.Contains(t, err.Error(), "failed to generate app key")
+		err := newCommand.initProject(tmpDir)
+		assert.ErrorContains(t, err, "failed to generate .env file")
 	})
 
 	t.Run("sets artisan file permissions when artisan exists", func(t *testing.T) {
@@ -481,13 +450,6 @@ func TestInitProject(t *testing.T) {
 		mockModTidyResult := mocksprocess.NewResult(t)
 		mockModTidyResult.EXPECT().Failed().Return(false).Once()
 		mockProcess.EXPECT().Run("go", "mod", "tidy").Return(mockModTidyResult).Once()
-
-		// Mock key:generate
-		mockProcess.EXPECT().WithSpinner("Generating application key").Return(mockProcess).Once()
-		mockProcess.EXPECT().Path(tmpDir).Return(mockProcess).Once()
-		mockKeyGenResult := mocksprocess.NewResult(t)
-		mockKeyGenResult.EXPECT().Failed().Return(false).Once()
-		mockProcess.EXPECT().Run("go", "run", ".", "artisan", "key:generate").Return(mockKeyGenResult).Once()
 
 		err = newCommand.initProject(tmpDir)
 		assert.Nil(t, err)
@@ -714,4 +676,28 @@ func TestGetProjectTypeLiteFlag(t *testing.T) {
 	projectType, err := newCommand.getProjectType(mockContext, false)
 	assert.Nil(t, err)
 	assert.Equal(t, "lite", projectType)
+}
+
+func TestWriteEnvFile(t *testing.T) {
+	t.Run("replaces APP_KEY and keeps the rest", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		assert.Nil(t, os.WriteFile(filepath.Join(tmpDir, ".env.example"), []byte("APP_NAME=Goravel\r\nAPP_KEY=\r\nAPP_DEBUG=true\r\n"), 0644))
+
+		assert.Nil(t, writeEnvFile(tmpDir))
+
+		content, err := os.ReadFile(filepath.Join(tmpDir, ".env"))
+		assert.Nil(t, err)
+		assert.Regexp(t, `^APP_NAME=Goravel\r\nAPP_KEY=[0-9a-zA-Z]{32}\r\nAPP_DEBUG=true\r\n$`, string(content))
+	})
+
+	t.Run("adds APP_KEY when it is missing", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		assert.Nil(t, os.WriteFile(filepath.Join(tmpDir, ".env.example"), []byte("APP_NAME=Goravel"), 0644))
+
+		assert.Nil(t, writeEnvFile(tmpDir))
+
+		content, err := os.ReadFile(filepath.Join(tmpDir, ".env"))
+		assert.Nil(t, err)
+		assert.Regexp(t, `^APP_NAME=Goravel\nAPP_KEY=[0-9a-zA-Z]{32}\n$`, string(content))
+	})
 }
