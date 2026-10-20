@@ -3,7 +3,9 @@ package commands
 import (
 	"bufio"
 	"fmt"
+	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -19,7 +21,15 @@ import (
 	"github.com/goravel/installer/support"
 )
 
-var moduleNameRegexp = regexp.MustCompile(`^[a-zA-Z0-9./_~-]+$`)
+var (
+	moduleNameRegexp  = regexp.MustCompile(`^[a-zA-Z0-9./_~-]+$`)
+	projectNameRegexp = regexp.MustCompile(`^[\w.-]+$`)
+	goModModuleRegexp = regexp.MustCompile(`^module\s+goravel\b`)
+	goImportRegexp    = regexp.MustCompile(`"goravel/([^"]+)"`)
+
+	// lookPath is replaced in tests to simulate a missing tool.
+	lookPath = exec.LookPath
+)
 
 type NewCommand struct {
 }
@@ -64,36 +74,37 @@ func (r *NewCommand) Extend() command.Extend {
 }
 
 // Handle Execute the console command.
-func (r *NewCommand) Handle(ctx console.Context) (err error) {
+func (r *NewCommand) Handle(ctx console.Context) error {
 	r.printWelcome(ctx)
+
+	if err := checkRequiredTools(); err != nil {
+		return err
+	}
 
 	name, err := r.getProjectName(ctx)
 	if err != nil {
-		color.Errorln(err)
-		return nil
+		return err
 	}
 
 	projectType, err := r.getProjectType(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to get project type: %s", err)
+		return fmt.Errorf("failed to get project type: %w", err)
 	}
 
 	module, err := r.getModuleName(ctx)
 	if err != nil {
-		color.Errorln(err)
-		return nil
+		return err
 	}
 
 	installLite := projectType == "lite"
-	if err = r.generateProject(ctx, name, module, installLite); err != nil {
-		color.Errorln(err)
-		return nil
+	if err := r.generateProject(ctx, name, module, installLite); err != nil {
+		return err
 	}
 
 	color.Successln("Application ready in [<op=bold>" + name + "</>]. Build something amazing! 🚀🚀")
 	color.Successln("Are you new to Goravel? Please visit https://goravel.dev to get started.")
 
-	return
+	return nil
 }
 
 func (r *NewCommand) cloneGoravel(repo, path string, dev bool) error {
@@ -104,46 +115,54 @@ func (r *NewCommand) cloneGoravel(repo, path string, dev bool) error {
 
 	res := facades.Process().Run("git", args...)
 	if res.Failed() {
-		return fmt.Errorf("failed to clone goravel: %s", res.Error())
+		return fmt.Errorf("failed to clone goravel: %w", res.Error())
 	}
 
-	color.Successln("Cloned goravel in " + path)
+	color.Successln("Cloned goravel")
 
 	return nil
 }
 
 func (r *NewCommand) generateProject(ctx console.Context, name, module string, installLite bool) error {
-	path := getAbsolutePath(name)
-
-	// remove the directory if it already exists
-	if err := os.RemoveAll(path); err != nil {
-		return fmt.Errorf("failed to remove the directory: %s", err)
+	path, err := getAbsolutePath(name)
+	if err != nil {
+		return err
 	}
+
+	// Build the project in a temp directory next to the target, so a failed
+	// install never leaves a half-built project or touches an existing one.
+	tmpPath, err := os.MkdirTemp(filepath.Dir(path), "."+name+"-*")
+	if err != nil {
+		return fmt.Errorf("failed to create a temp directory: %w", err)
+	}
+	defer func() {
+		_ = os.RemoveAll(tmpPath)
+	}()
 
 	repo := "https://github.com/goravel/goravel.git"
 	if installLite {
 		repo = "https://github.com/goravel/goravel-lite.git"
 	}
 
-	if err := r.cloneGoravel(repo, path, ctx.OptionBool("dev")); err != nil {
+	if err := r.cloneGoravel(repo, tmpPath, ctx.OptionBool("dev")); err != nil {
 		return err
 	}
 
-	if err := r.replaceModule(ctx, path, module); err != nil {
+	if err := r.replaceModule(ctx, tmpPath, module); err != nil {
 		return err
 	}
 
-	if err := r.initProject(path); err != nil {
+	if err := r.initProject(tmpPath); err != nil {
 		return err
 	}
 
 	if installLite {
-		if err := r.installFacades(path); err != nil {
+		if err := r.installFacades(tmpPath); err != nil {
 			return err
 		}
 	}
 
-	return nil
+	return moveIntoPlace(tmpPath, path)
 }
 
 func (r *NewCommand) getModuleName(ctx console.Context) (string, error) {
@@ -195,12 +214,23 @@ func (r *NewCommand) getProjectName(ctx console.Context) (string, error) {
 		}
 	}
 
-	if !regexp.MustCompile(`^[\w.-]+$`).MatchString(name) {
+	if !projectNameRegexp.MatchString(name) {
 		return "", errors.New("the name only supports letters, numbers, dashes, underscores, and periods")
 	}
 
+	// "." and ".." pass the check above but point at the current or parent
+	// directory, which --force would then replace.
+	if name == "." || name == ".." {
+		return "", errors.New(`the name can't be "." or ".."`)
+	}
+
+	path, err := getAbsolutePath(name)
+	if err != nil {
+		return "", err
+	}
+
 	force := ctx.OptionBool("force")
-	if !force && verifyIfDirectoryExists(getAbsolutePath(name)) {
+	if !force && verifyIfDirectoryExists(path) {
 		return "", errors.New("the directory already exists. use the --force flag to overwrite")
 	}
 
@@ -218,37 +248,37 @@ func (r *NewCommand) getProjectType(ctx console.Context) (string, error) {
 
 func (r *NewCommand) initProject(path string) error {
 	if err := file.Remove(filepath.Join(path, ".git")); err != nil {
-		return fmt.Errorf("failed to remove .git: %s", err)
+		return fmt.Errorf("failed to remove .git: %w", err)
 	}
 
 	if err := file.Remove(filepath.Join(path, ".github")); err != nil {
-		return fmt.Errorf("failed to remove .github: %s", err)
+		return fmt.Errorf("failed to remove .github: %w", err)
 	}
 
 	if err := file.Remove(filepath.Join(path, "main_test.go")); err != nil {
-		return fmt.Errorf("failed to remove main_test.go: %s", err)
+		return fmt.Errorf("failed to remove main_test.go: %w", err)
 	}
 
 	if artisan := filepath.Join(path, "artisan"); file.Exists(artisan) {
 		if err := os.Chmod(artisan, 0755); err != nil {
-			return fmt.Errorf("failed to set artisan execute permission: %s", err)
+			return fmt.Errorf("failed to set artisan execute permission: %w", err)
 		}
 	}
 
 	if res := facades.Process().WithSpinner("Installing dependencies").Path(path).Run("go", "mod", "tidy"); res.Failed() {
-		return fmt.Errorf("failed to install dependencies: %s", res.Error())
+		return fmt.Errorf("failed to install dependencies: %w", res.Error())
 	}
 
 	color.Successln("Installed dependencies")
 
 	if err := file.Copy(filepath.Join(path, ".env.example"), filepath.Join(path, ".env")); err != nil {
-		return fmt.Errorf("failed to generate .env file: %s", err)
+		return fmt.Errorf("failed to generate .env file: %w", err)
 	}
 
 	color.Successln("Generated .env file")
 
 	if res := facades.Process().WithSpinner("Generating application key").Path(path).Run("go", "run", ".", "artisan", "key:generate"); res.Failed() {
-		return fmt.Errorf("failed to generate app key: %s", res.Error())
+		return fmt.Errorf("failed to generate app key: %w", res.Error())
 	}
 
 	return nil
@@ -256,7 +286,7 @@ func (r *NewCommand) initProject(path string) error {
 
 func (r *NewCommand) installFacades(path string) error {
 	if res := facades.Process().TTY().Path(path).Run("go", "run", ".", "artisan", "package:install"); res.Failed() {
-		return fmt.Errorf("failed to install facades: %s", res.Error())
+		return fmt.Errorf("failed to install facades: %w", res.Error())
 	}
 
 	return nil
@@ -275,11 +305,9 @@ func (r *NewCommand) replaceModule(ctx console.Context, path, module string) err
 	if err := ctx.Spinner("Updating module name to \""+module+"\"", console.SpinnerOption{
 		Action: func() error {
 			module = strings.Trim(module, "/")
-			reModule := regexp.MustCompile(`^module\s+goravel\b`)
-			reImport := regexp.MustCompile(`"goravel/([^"]+)"`)
 
-			return filepath.Walk(path, func(filePath string, info os.FileInfo, err error) error {
-				if err != nil || info.IsDir() || (!strings.HasSuffix(filePath, ".go") && !strings.HasSuffix(filePath, ".mod")) {
+			return filepath.WalkDir(path, func(filePath string, entry fs.DirEntry, err error) error {
+				if err != nil || entry.IsDir() || (!strings.HasSuffix(filePath, ".go") && !strings.HasSuffix(filePath, ".mod")) {
 					return err
 				}
 
@@ -297,9 +325,9 @@ func (r *NewCommand) replaceModule(ctx console.Context, path, module string) err
 					var newLine string
 
 					if strings.HasSuffix(filePath, ".mod") {
-						newLine = reModule.ReplaceAllString(line, "module "+module)
+						newLine = goModModuleRegexp.ReplaceAllString(line, "module "+module)
 					} else {
-						newLine = reImport.ReplaceAllString(line, `"`+module+`/$1"`)
+						newLine = goImportRegexp.ReplaceAllString(line, `"`+module+`/$1"`)
 					}
 
 					if newLine != line {
@@ -319,7 +347,7 @@ func (r *NewCommand) replaceModule(ctx console.Context, path, module string) err
 			})
 		},
 	}); err != nil {
-		return fmt.Errorf("failed to update module name: %s", err)
+		return fmt.Errorf("failed to update module name: %w", err)
 	}
 
 	color.Successln("Updated Module name")
@@ -331,16 +359,69 @@ func checkModuleName(module string) bool {
 	return moduleNameRegexp.MatchString(module)
 }
 
-// getPath Get the full path to the command.
-func getAbsolutePath(name string) string {
-	pwd, _ := os.Getwd()
+// checkRequiredTools checks that git and go are installed before anything runs.
+func checkRequiredTools() error {
+	for _, tool := range []string{"git", "go"} {
+		if _, err := lookPath(tool); err != nil {
+			return fmt.Errorf("%s is required but was not found in PATH", tool)
+		}
+	}
 
-	return filepath.Clean(filepath.Join(pwd, name))
+	return nil
+}
+
+// getAbsolutePath returns the absolute path of the project directory.
+func getAbsolutePath(name string) (string, error) {
+	pwd, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("failed to get the current directory: %w", err)
+	}
+
+	return filepath.Clean(filepath.Join(pwd, name)), nil
+}
+
+// moveIntoPlace moves the finished project from src to dst. An existing dst
+// (only possible with --force) is moved aside first and is put back if the
+// move fails, so it is never lost.
+func moveIntoPlace(src, dst string) error {
+	if !verifyIfDirectoryExists(dst) {
+		if err := os.Rename(src, dst); err != nil {
+			return fmt.Errorf("failed to move the project into place: %w", err)
+		}
+
+		return nil
+	}
+
+	backupDir, err := os.MkdirTemp(filepath.Dir(dst), "."+filepath.Base(dst)+"-old-*")
+	if err != nil {
+		return fmt.Errorf("failed to create a backup directory: %w", err)
+	}
+
+	backup := filepath.Join(backupDir, filepath.Base(dst))
+	if err := os.Rename(dst, backup); err != nil {
+		_ = os.RemoveAll(backupDir)
+		return fmt.Errorf("failed to move the existing directory aside: %w", err)
+	}
+
+	if err := os.Rename(src, dst); err != nil {
+		if restoreErr := os.Rename(backup, dst); restoreErr != nil {
+			return fmt.Errorf("failed to move the project into place: %w. The existing directory was kept at %s", err, backup)
+		}
+		_ = os.RemoveAll(backupDir)
+
+		return fmt.Errorf("failed to move the project into place: %w", err)
+	}
+
+	if err := os.RemoveAll(backupDir); err != nil {
+		color.Warningln("Failed to remove the old directory at " + backup + ": " + err.Error())
+	}
+
+	return nil
 }
 
 // verifyIfDirectoryExists Verify if the directory already exists.
 func verifyIfDirectoryExists(path string) bool {
 	_, err := os.Stat(path)
 
-	return !os.IsNotExist(err)
+	return !errors.Is(err, fs.ErrNotExist)
 }

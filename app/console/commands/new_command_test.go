@@ -104,6 +104,16 @@ func TestGetProjectName(t *testing.T) {
 		assert.Equal(t, "my.project", name)
 	})
 
+	t.Run("rejects the current and parent directory", func(t *testing.T) {
+		for _, name := range []string{".", ".."} {
+			mockContext := mocksconsole.NewContext(t)
+			mockContext.EXPECT().Argument(0).Return(name).Once()
+
+			_, err := newCommand.getProjectName(mockContext)
+			assert.EqualError(t, err, `the name can't be "." or ".."`)
+		}
+	})
+
 	t.Run("valid project name with mixed characters", func(t *testing.T) {
 		mockContext := mocksconsole.NewContext(t)
 		mockContext.EXPECT().Argument(0).Return("MyProject_123-v2.0").Once()
@@ -249,22 +259,23 @@ func TestHandle(t *testing.T) {
 	mockCloneResult := mocksprocess.NewResult(t)
 	mockCloneResult.EXPECT().Failed().Return(false).Once()
 	mockProcess.EXPECT().Run("git", "clone", "--depth=1", "https://github.com/goravel/goravel.git", mock.Anything).RunAndReturn(func(command string, args ...string) process.Result {
-		// Simulate git clone by creating the project directory structure
-		err := os.MkdirAll(projectPath, 0755)
+		// Simulate git clone by creating the project in the directory it was asked to clone into
+		clonePath := args[len(args)-1]
+		err := os.MkdirAll(clonePath, 0755)
 		assert.Nil(t, err)
 
 		// Create go.mod file
-		modFile := filepath.Join(projectPath, "go.mod")
+		modFile := filepath.Join(clonePath, "go.mod")
 		err = os.WriteFile(modFile, []byte("module goravel\n"), 0644)
 		assert.Nil(t, err)
 
 		// Create .env.example file
-		envExample := filepath.Join(projectPath, ".env.example")
+		envExample := filepath.Join(clonePath, ".env.example")
 		err = os.WriteFile(envExample, []byte("APP_NAME=TestApp\n"), 0644)
 		assert.Nil(t, err)
 
 		// Create a simple go file to test module replacement
-		mainFile := filepath.Join(projectPath, "main.go")
+		mainFile := filepath.Join(clonePath, "main.go")
 		err = os.WriteFile(mainFile, []byte(`package main
 import "goravel/app"
 func main() {}`), 0644)
@@ -541,4 +552,121 @@ func main() {}`), os.ModePerm)
 	invalidContent, err := os.ReadFile(invalidFile)
 	assert.Nil(t, err)
 	assert.Equal(t, "This is a test file.", string(invalidContent))
+}
+
+func TestHandleCloneFailure(t *testing.T) {
+	newCommand := &NewCommand{}
+
+	mockFactory := frameworkmock.Factory()
+	mockProcess := mockFactory.Process()
+
+	tmpDir := t.TempDir()
+	t.Chdir(tmpDir)
+
+	// An existing project that --force would replace
+	projectPath := filepath.Join(tmpDir, "test-project")
+	assert.Nil(t, os.MkdirAll(projectPath, 0755))
+	assert.Nil(t, os.WriteFile(filepath.Join(projectPath, "keep.txt"), []byte("keep"), 0644))
+
+	mockContext := mocksconsole.NewContext(t)
+	mockContext.EXPECT().NewLine().Once()
+	mockContext.EXPECT().Argument(0).Return("test-project").Once()
+	mockContext.EXPECT().OptionBool("force").Return(true).Once()
+	mockContext.EXPECT().Choice("Which do you want to install?", mock.Anything).Return("goravel", nil).Once()
+	mockContext.EXPECT().Option("module").Return("goravel").Once()
+	mockContext.EXPECT().OptionBool("dev").Return(false).Once()
+
+	mockCloneResult := mocksprocess.NewResult(t)
+	mockCloneResult.EXPECT().Failed().Return(true).Once()
+	mockCloneResult.EXPECT().Error().Return(assert.AnError).Once()
+	mockProcess.EXPECT().Run("git", "clone", "--depth=1", "https://github.com/goravel/goravel.git", mock.Anything).Return(mockCloneResult).Once()
+
+	err := newCommand.Handle(mockContext)
+	assert.ErrorIs(t, err, assert.AnError)
+
+	// The existing project is untouched and no temp directory is left behind
+	content, err := os.ReadFile(filepath.Join(projectPath, "keep.txt"))
+	assert.Nil(t, err)
+	assert.Equal(t, "keep", string(content))
+
+	entries, err := os.ReadDir(tmpDir)
+	assert.Nil(t, err)
+	assert.Len(t, entries, 1)
+}
+
+func TestCheckRequiredTools(t *testing.T) {
+	original := lookPath
+	t.Cleanup(func() {
+		lookPath = original
+	})
+
+	t.Run("all tools found", func(t *testing.T) {
+		lookPath = func(file string) (string, error) {
+			return "/usr/bin/" + file, nil
+		}
+
+		assert.Nil(t, checkRequiredTools())
+	})
+
+	t.Run("git missing", func(t *testing.T) {
+		lookPath = func(file string) (string, error) {
+			if file == "git" {
+				return "", assert.AnError
+			}
+			return "/usr/bin/" + file, nil
+		}
+
+		assert.EqualError(t, checkRequiredTools(), "git is required but was not found in PATH")
+	})
+}
+
+func TestMoveIntoPlace(t *testing.T) {
+	newProject := func(t *testing.T, dir, content string) string {
+		path := filepath.Join(dir, "new")
+		assert.Nil(t, os.MkdirAll(path, 0755))
+		assert.Nil(t, os.WriteFile(filepath.Join(path, "file.txt"), []byte(content), 0644))
+		return path
+	}
+
+	t.Run("moves to a new directory", func(t *testing.T) {
+		dir := t.TempDir()
+		src := newProject(t, dir, "new")
+		dst := filepath.Join(dir, "app")
+
+		assert.Nil(t, moveIntoPlace(src, dst))
+		assert.NoDirExists(t, src)
+		assert.FileExists(t, filepath.Join(dst, "file.txt"))
+	})
+
+	t.Run("replaces an existing directory without leaving a backup", func(t *testing.T) {
+		dir := t.TempDir()
+		src := newProject(t, dir, "new")
+		dst := filepath.Join(dir, "app")
+		assert.Nil(t, os.MkdirAll(dst, 0755))
+		assert.Nil(t, os.WriteFile(filepath.Join(dst, "old.txt"), []byte("old"), 0644))
+
+		assert.Nil(t, moveIntoPlace(src, dst))
+		assert.FileExists(t, filepath.Join(dst, "file.txt"))
+		assert.NoFileExists(t, filepath.Join(dst, "old.txt"))
+
+		entries, err := os.ReadDir(dir)
+		assert.Nil(t, err)
+		assert.Len(t, entries, 1)
+	})
+
+	t.Run("restores the existing directory when the move fails", func(t *testing.T) {
+		dir := t.TempDir()
+		dst := filepath.Join(dir, "app")
+		assert.Nil(t, os.MkdirAll(dst, 0755))
+		assert.Nil(t, os.WriteFile(filepath.Join(dst, "old.txt"), []byte("old"), 0644))
+
+		// src doesn't exist, so the move fails after dst was moved aside
+		err := moveIntoPlace(filepath.Join(dir, "missing"), dst)
+		assert.ErrorContains(t, err, "failed to move the project into place")
+		assert.FileExists(t, filepath.Join(dst, "old.txt"))
+
+		entries, err := os.ReadDir(dir)
+		assert.Nil(t, err)
+		assert.Len(t, entries, 1)
+	})
 }
