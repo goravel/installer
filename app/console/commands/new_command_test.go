@@ -79,7 +79,7 @@ func TestGetProjectName(t *testing.T) {
 		mockContext.EXPECT().Argument(0).Return("my-project").Once()
 		mockContext.EXPECT().OptionBool("force").Return(false).Once()
 
-		name, err := newCommand.getProjectName(mockContext)
+		name, err := newCommand.getProjectName(mockContext, false)
 		assert.Nil(t, err)
 		assert.Equal(t, "my-project", name)
 	})
@@ -89,7 +89,7 @@ func TestGetProjectName(t *testing.T) {
 		mockContext.EXPECT().Argument(0).Return("my_project").Once()
 		mockContext.EXPECT().OptionBool("force").Return(false).Once()
 
-		name, err := newCommand.getProjectName(mockContext)
+		name, err := newCommand.getProjectName(mockContext, false)
 		assert.Nil(t, err)
 		assert.Equal(t, "my_project", name)
 	})
@@ -99,7 +99,7 @@ func TestGetProjectName(t *testing.T) {
 		mockContext.EXPECT().Argument(0).Return("my.project").Once()
 		mockContext.EXPECT().OptionBool("force").Return(false).Once()
 
-		name, err := newCommand.getProjectName(mockContext)
+		name, err := newCommand.getProjectName(mockContext, false)
 		assert.Nil(t, err)
 		assert.Equal(t, "my.project", name)
 	})
@@ -109,7 +109,7 @@ func TestGetProjectName(t *testing.T) {
 			mockContext := mocksconsole.NewContext(t)
 			mockContext.EXPECT().Argument(0).Return(name).Once()
 
-			_, err := newCommand.getProjectName(mockContext)
+			_, err := newCommand.getProjectName(mockContext, false)
 			assert.EqualError(t, err, `the name can't be "." or ".."`)
 		}
 	})
@@ -119,7 +119,7 @@ func TestGetProjectName(t *testing.T) {
 		mockContext.EXPECT().Argument(0).Return("MyProject_123-v2.0").Once()
 		mockContext.EXPECT().OptionBool("force").Return(false).Once()
 
-		name, err := newCommand.getProjectName(mockContext)
+		name, err := newCommand.getProjectName(mockContext, false)
 		assert.Nil(t, err)
 		assert.Equal(t, "MyProject_123-v2.0", name)
 	})
@@ -128,7 +128,7 @@ func TestGetProjectName(t *testing.T) {
 		mockContext := mocksconsole.NewContext(t)
 		mockContext.EXPECT().Argument(0).Return("my@project").Once()
 
-		name, err := newCommand.getProjectName(mockContext)
+		name, err := newCommand.getProjectName(mockContext, false)
 		assert.NotNil(t, err)
 		assert.Equal(t, "the name only supports letters, numbers, dashes, underscores, and periods", err.Error())
 		assert.Equal(t, "", name)
@@ -138,7 +138,7 @@ func TestGetProjectName(t *testing.T) {
 		mockContext := mocksconsole.NewContext(t)
 		mockContext.EXPECT().Argument(0).Return("my project").Once()
 
-		name, err := newCommand.getProjectName(mockContext)
+		name, err := newCommand.getProjectName(mockContext, false)
 		assert.NotNil(t, err)
 		assert.Equal(t, "the name only supports letters, numbers, dashes, underscores, and periods", err.Error())
 		assert.Equal(t, "", name)
@@ -148,7 +148,7 @@ func TestGetProjectName(t *testing.T) {
 		mockContext := mocksconsole.NewContext(t)
 		mockContext.EXPECT().Argument(0).Return("my/project").Once()
 
-		name, err := newCommand.getProjectName(mockContext)
+		name, err := newCommand.getProjectName(mockContext, false)
 		assert.NotNil(t, err)
 		assert.Equal(t, "the name only supports letters, numbers, dashes, underscores, and periods", err.Error())
 		assert.Equal(t, "", name)
@@ -177,7 +177,7 @@ func TestGetProjectName(t *testing.T) {
 		mockContext.EXPECT().Argument(0).Return(projectName).Once()
 		mockContext.EXPECT().OptionBool("force").Return(false).Once()
 
-		name, err := newCommand.getProjectName(mockContext)
+		name, err := newCommand.getProjectName(mockContext, false)
 		assert.NotNil(t, err)
 		assert.Equal(t, "the directory already exists. use the --force flag to overwrite", err.Error())
 		assert.Equal(t, "", name)
@@ -206,7 +206,7 @@ func TestGetProjectName(t *testing.T) {
 		mockContext.EXPECT().Argument(0).Return(projectName).Once()
 		mockContext.EXPECT().OptionBool("force").Return(true).Once()
 
-		name, err := newCommand.getProjectName(mockContext)
+		name, err := newCommand.getProjectName(mockContext, false)
 		assert.Nil(t, err)
 		assert.Equal(t, projectName, name)
 	})
@@ -241,12 +241,14 @@ func TestHandle(t *testing.T) {
 
 	// Mock printWelcome (NewLine call)
 	mockContext.EXPECT().NewLine().Once()
+	mockContext.EXPECT().OptionBool("no-interaction").Return(false).Once()
 
 	// Mock getProjectName
 	mockContext.EXPECT().Argument(0).Return(projectName).Once()
 	mockContext.EXPECT().OptionBool("force").Return(false).Once()
 
 	// Mock getProjectType
+	mockContext.EXPECT().OptionBool("lite").Return(false).Once()
 	mockContext.EXPECT().Choice("Which do you want to install?", mock.MatchedBy(func(choices []console.Choice) bool {
 		return len(choices) == 2
 	})).Return("goravel", nil).Once()
@@ -570,8 +572,10 @@ func TestHandleCloneFailure(t *testing.T) {
 
 	mockContext := mocksconsole.NewContext(t)
 	mockContext.EXPECT().NewLine().Once()
+	mockContext.EXPECT().OptionBool("no-interaction").Return(false).Once()
 	mockContext.EXPECT().Argument(0).Return("test-project").Once()
 	mockContext.EXPECT().OptionBool("force").Return(true).Once()
+	mockContext.EXPECT().OptionBool("lite").Return(false).Once()
 	mockContext.EXPECT().Choice("Which do you want to install?", mock.Anything).Return("goravel", nil).Once()
 	mockContext.EXPECT().Option("module").Return("goravel").Once()
 	mockContext.EXPECT().OptionBool("dev").Return(false).Once()
@@ -669,4 +673,45 @@ func TestMoveIntoPlace(t *testing.T) {
 		assert.Nil(t, err)
 		assert.Len(t, entries, 1)
 	})
+}
+
+func TestNoInteraction(t *testing.T) {
+	newCommand := &NewCommand{}
+
+	t.Run("project name is required", func(t *testing.T) {
+		mockContext := mocksconsole.NewContext(t)
+		mockContext.EXPECT().Argument(0).Return("").Once()
+
+		_, err := newCommand.getProjectName(mockContext, true)
+		assert.EqualError(t, err, "the project name is required, e.g. goravel new example-app")
+	})
+
+	t.Run("module defaults to goravel", func(t *testing.T) {
+		mockContext := mocksconsole.NewContext(t)
+		mockContext.EXPECT().Option("module").Return("").Once()
+
+		module, err := newCommand.getModuleName(mockContext, true)
+		assert.Nil(t, err)
+		assert.Equal(t, "goravel", module)
+	})
+
+	t.Run("project type defaults to goravel", func(t *testing.T) {
+		mockContext := mocksconsole.NewContext(t)
+		mockContext.EXPECT().OptionBool("lite").Return(false).Once()
+
+		projectType, err := newCommand.getProjectType(mockContext, true)
+		assert.Nil(t, err)
+		assert.Equal(t, "goravel", projectType)
+	})
+}
+
+func TestGetProjectTypeLiteFlag(t *testing.T) {
+	newCommand := &NewCommand{}
+
+	mockContext := mocksconsole.NewContext(t)
+	mockContext.EXPECT().OptionBool("lite").Return(true).Once()
+
+	projectType, err := newCommand.getProjectType(mockContext, false)
+	assert.Nil(t, err)
+	assert.Equal(t, "lite", projectType)
 }

@@ -69,6 +69,17 @@ func (r *NewCommand) Extend() command.Extend {
 				Aliases: []string{"m"},
 				Usage:   "Specify the custom module name to replace the default 'goravel' module",
 			},
+			&command.BoolFlag{
+				Name:               "lite",
+				Usage:              "Install Goravel Lite, which only includes essential facades",
+				DisableDefaultText: true,
+			},
+			&command.BoolFlag{
+				Name:               "no-interaction",
+				Aliases:            []string{"n"},
+				Usage:              "Don't ask any questions, use the flags and defaults instead",
+				DisableDefaultText: true,
+			},
 		},
 	}
 }
@@ -81,23 +92,25 @@ func (r *NewCommand) Handle(ctx console.Context) error {
 		return err
 	}
 
-	name, err := r.getProjectName(ctx)
+	noInteraction := ctx.OptionBool("no-interaction")
+
+	name, err := r.getProjectName(ctx, noInteraction)
 	if err != nil {
 		return err
 	}
 
-	projectType, err := r.getProjectType(ctx)
+	projectType, err := r.getProjectType(ctx, noInteraction)
 	if err != nil {
 		return fmt.Errorf("failed to get project type: %w", err)
 	}
 
-	module, err := r.getModuleName(ctx)
+	module, err := r.getModuleName(ctx, noInteraction)
 	if err != nil {
 		return err
 	}
 
 	installLite := projectType == "lite"
-	if err := r.generateProject(ctx, name, module, installLite); err != nil {
+	if err := r.generateProject(ctx, name, module, installLite, noInteraction); err != nil {
 		return err
 	}
 
@@ -123,7 +136,7 @@ func (r *NewCommand) cloneGoravel(repo, path string, dev bool) error {
 	return nil
 }
 
-func (r *NewCommand) generateProject(ctx console.Context, name, module string, installLite bool) error {
+func (r *NewCommand) generateProject(ctx console.Context, name, module string, installLite, noInteraction bool) error {
 	path, err := getAbsolutePath(name)
 	if err != nil {
 		return err
@@ -156,18 +169,32 @@ func (r *NewCommand) generateProject(ctx console.Context, name, module string, i
 		return err
 	}
 
-	if installLite {
+	// package:install asks which facades to install, so it is skipped when
+	// questions are turned off.
+	if installLite && !noInteraction {
 		if err := r.installFacades(tmpPath); err != nil {
 			return err
 		}
 	}
 
-	return moveIntoPlace(tmpPath, path)
+	if err := moveIntoPlace(tmpPath, path); err != nil {
+		return err
+	}
+
+	if installLite && noInteraction {
+		color.Infoln("No facades were installed. Run [<op=bold>./artisan package:install</>] in the project to add them.")
+	}
+
+	return nil
 }
 
-func (r *NewCommand) getModuleName(ctx console.Context) (string, error) {
+func (r *NewCommand) getModuleName(ctx console.Context, noInteraction bool) (string, error) {
 	var err error
 	module := ctx.Option("module")
+
+	if module == "" && noInteraction {
+		module = support.DefaultModuleName
+	}
 
 	if module == "" {
 		module, err = ctx.Ask("What is the module name?", console.AskOption{
@@ -193,9 +220,13 @@ func (r *NewCommand) getModuleName(ctx console.Context) (string, error) {
 	return module, nil
 }
 
-func (r *NewCommand) getProjectName(ctx console.Context) (string, error) {
+func (r *NewCommand) getProjectName(ctx console.Context, noInteraction bool) (string, error) {
 	var err error
 	name := ctx.Argument(0)
+
+	if name == "" && noInteraction {
+		return "", errors.New("the project name is required, e.g. goravel new example-app")
+	}
 
 	if name == "" {
 		name, err = ctx.Ask("What is the name of your project?", console.AskOption{
@@ -237,7 +268,15 @@ func (r *NewCommand) getProjectName(ctx console.Context) (string, error) {
 	return name, nil
 }
 
-func (r *NewCommand) getProjectType(ctx console.Context) (string, error) {
+func (r *NewCommand) getProjectType(ctx console.Context, noInteraction bool) (string, error) {
+	if ctx.OptionBool("lite") {
+		return "lite", nil
+	}
+
+	if noInteraction {
+		return "goravel", nil
+	}
+
 	options := []console.Choice{
 		{Key: "Goravel      - Includes all facades", Value: "goravel"},
 		{Key: "Goravel Lite - Only includes essential facades", Value: "lite"},
