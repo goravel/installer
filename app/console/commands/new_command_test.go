@@ -76,30 +76,24 @@ func TestGetProjectName(t *testing.T) {
 
 	t.Run("valid project name provided", func(t *testing.T) {
 		mockContext := mocksconsole.NewContext(t)
-		mockContext.EXPECT().Argument(0).Return("my-project").Once()
-		mockContext.EXPECT().OptionBool("force").Return(false).Once()
 
-		name, err := newCommand.getProjectName(mockContext, false)
+		name, err := newCommand.getProjectName(mockContext, "my-project", false)
 		assert.Nil(t, err)
 		assert.Equal(t, "my-project", name)
 	})
 
 	t.Run("valid project name with underscores", func(t *testing.T) {
 		mockContext := mocksconsole.NewContext(t)
-		mockContext.EXPECT().Argument(0).Return("my_project").Once()
-		mockContext.EXPECT().OptionBool("force").Return(false).Once()
 
-		name, err := newCommand.getProjectName(mockContext, false)
+		name, err := newCommand.getProjectName(mockContext, "my_project", false)
 		assert.Nil(t, err)
 		assert.Equal(t, "my_project", name)
 	})
 
 	t.Run("valid project name with periods", func(t *testing.T) {
 		mockContext := mocksconsole.NewContext(t)
-		mockContext.EXPECT().Argument(0).Return("my.project").Once()
-		mockContext.EXPECT().OptionBool("force").Return(false).Once()
 
-		name, err := newCommand.getProjectName(mockContext, false)
+		name, err := newCommand.getProjectName(mockContext, "my.project", false)
 		assert.Nil(t, err)
 		assert.Equal(t, "my.project", name)
 	})
@@ -107,28 +101,24 @@ func TestGetProjectName(t *testing.T) {
 	t.Run("rejects the current and parent directory", func(t *testing.T) {
 		for _, name := range []string{".", ".."} {
 			mockContext := mocksconsole.NewContext(t)
-			mockContext.EXPECT().Argument(0).Return(name).Once()
 
-			_, err := newCommand.getProjectName(mockContext, false)
+			_, err := newCommand.getProjectName(mockContext, name, false)
 			assert.EqualError(t, err, `the name can't be "." or ".."`)
 		}
 	})
 
 	t.Run("valid project name with mixed characters", func(t *testing.T) {
 		mockContext := mocksconsole.NewContext(t)
-		mockContext.EXPECT().Argument(0).Return("MyProject_123-v2.0").Once()
-		mockContext.EXPECT().OptionBool("force").Return(false).Once()
 
-		name, err := newCommand.getProjectName(mockContext, false)
+		name, err := newCommand.getProjectName(mockContext, "MyProject_123-v2.0", false)
 		assert.Nil(t, err)
 		assert.Equal(t, "MyProject_123-v2.0", name)
 	})
 
 	t.Run("invalid project name with special characters", func(t *testing.T) {
 		mockContext := mocksconsole.NewContext(t)
-		mockContext.EXPECT().Argument(0).Return("my@project").Once()
 
-		name, err := newCommand.getProjectName(mockContext, false)
+		name, err := newCommand.getProjectName(mockContext, "my@project", false)
 		assert.NotNil(t, err)
 		assert.Equal(t, "the name only supports letters, numbers, dashes, underscores, and periods", err.Error())
 		assert.Equal(t, "", name)
@@ -136,9 +126,8 @@ func TestGetProjectName(t *testing.T) {
 
 	t.Run("invalid project name with spaces", func(t *testing.T) {
 		mockContext := mocksconsole.NewContext(t)
-		mockContext.EXPECT().Argument(0).Return("my project").Once()
 
-		name, err := newCommand.getProjectName(mockContext, false)
+		name, err := newCommand.getProjectName(mockContext, "my project", false)
 		assert.NotNil(t, err)
 		assert.Equal(t, "the name only supports letters, numbers, dashes, underscores, and periods", err.Error())
 		assert.Equal(t, "", name)
@@ -146,69 +135,11 @@ func TestGetProjectName(t *testing.T) {
 
 	t.Run("invalid project name with slash", func(t *testing.T) {
 		mockContext := mocksconsole.NewContext(t)
-		mockContext.EXPECT().Argument(0).Return("my/project").Once()
 
-		name, err := newCommand.getProjectName(mockContext, false)
+		name, err := newCommand.getProjectName(mockContext, "my/project", false)
 		assert.NotNil(t, err)
 		assert.Equal(t, "the name only supports letters, numbers, dashes, underscores, and periods", err.Error())
 		assert.Equal(t, "", name)
-	})
-
-	t.Run("directory already exists without force flag", func(t *testing.T) {
-		tmpDir, err := os.MkdirTemp("", "test-project-exists")
-		assert.Nil(t, err)
-		defer func() {
-			_ = os.RemoveAll(tmpDir)
-		}()
-
-		projectName := filepath.Base(tmpDir)
-		currentDir, err := os.Getwd()
-		assert.Nil(t, err)
-
-		// Change to the parent directory temporarily
-		parentDir := filepath.Dir(tmpDir)
-		err = os.Chdir(parentDir)
-		assert.Nil(t, err)
-		defer func() {
-			_ = os.Chdir(currentDir)
-		}()
-
-		mockContext := mocksconsole.NewContext(t)
-		mockContext.EXPECT().Argument(0).Return(projectName).Once()
-		mockContext.EXPECT().OptionBool("force").Return(false).Once()
-
-		name, err := newCommand.getProjectName(mockContext, false)
-		assert.NotNil(t, err)
-		assert.Equal(t, "the directory already exists. use the --force flag to overwrite", err.Error())
-		assert.Equal(t, "", name)
-	})
-
-	t.Run("directory already exists with force flag", func(t *testing.T) {
-		tmpDir, err := os.MkdirTemp("", "test-project-force")
-		assert.Nil(t, err)
-		defer func() {
-			_ = os.RemoveAll(tmpDir)
-		}()
-
-		projectName := filepath.Base(tmpDir)
-		currentDir, err := os.Getwd()
-		assert.Nil(t, err)
-
-		// Change to the parent directory temporarily
-		parentDir := filepath.Dir(tmpDir)
-		err = os.Chdir(parentDir)
-		assert.Nil(t, err)
-		defer func() {
-			_ = os.Chdir(currentDir)
-		}()
-
-		mockContext := mocksconsole.NewContext(t)
-		mockContext.EXPECT().Argument(0).Return(projectName).Once()
-		mockContext.EXPECT().OptionBool("force").Return(true).Once()
-
-		name, err := newCommand.getProjectName(mockContext, false)
-		assert.Nil(t, err)
-		assert.Equal(t, projectName, name)
 	})
 }
 
@@ -642,40 +573,17 @@ func TestNoInteraction(t *testing.T) {
 
 	t.Run("project name is required", func(t *testing.T) {
 		mockContext := mocksconsole.NewContext(t)
-		mockContext.EXPECT().Argument(0).Return("").Once()
 
-		_, err := newCommand.getProjectName(mockContext, true)
+		_, err := newCommand.getProjectName(mockContext, "", true)
 		assert.EqualError(t, err, "the project name is required, e.g. goravel new example-app")
 	})
 
 	t.Run("module defaults to goravel", func(t *testing.T) {
 		mockContext := mocksconsole.NewContext(t)
-		mockContext.EXPECT().Option("module").Return("").Once()
-
-		module, err := newCommand.getModuleName(mockContext, true)
+		module, err := newCommand.getModuleName(mockContext, "", true)
 		assert.Nil(t, err)
 		assert.Equal(t, "goravel", module)
 	})
-
-	t.Run("project type defaults to goravel", func(t *testing.T) {
-		mockContext := mocksconsole.NewContext(t)
-		mockContext.EXPECT().OptionBool("lite").Return(false).Once()
-
-		projectType, err := newCommand.getProjectType(mockContext, true)
-		assert.Nil(t, err)
-		assert.Equal(t, "goravel", projectType)
-	})
-}
-
-func TestGetProjectTypeLiteFlag(t *testing.T) {
-	newCommand := &NewCommand{}
-
-	mockContext := mocksconsole.NewContext(t)
-	mockContext.EXPECT().OptionBool("lite").Return(true).Once()
-
-	projectType, err := newCommand.getProjectType(mockContext, false)
-	assert.Nil(t, err)
-	assert.Equal(t, "lite", projectType)
 }
 
 func TestWriteEnvFile(t *testing.T) {
@@ -699,5 +607,67 @@ func TestWriteEnvFile(t *testing.T) {
 		content, err := os.ReadFile(filepath.Join(tmpDir, ".env"))
 		assert.Nil(t, err)
 		assert.Regexp(t, `^APP_NAME=Goravel\nAPP_KEY=[0-9a-zA-Z]{32}\n$`, string(content))
+	})
+}
+
+func TestGetOptions(t *testing.T) {
+	newCommand := &NewCommand{}
+
+	expectFlags := func(mockContext *mocksconsole.Context, name, module string, lite, force, noInteraction bool) {
+		mockContext.EXPECT().Argument(0).Return(name).Once()
+		mockContext.EXPECT().Option("module").Return(module).Once()
+		mockContext.EXPECT().OptionBool("lite").Return(lite).Once()
+		mockContext.EXPECT().OptionBool("dev").Return(false).Once()
+		mockContext.EXPECT().OptionBool("force").Return(force).Once()
+		mockContext.EXPECT().OptionBool("no-interaction").Return(noInteraction).Once()
+	}
+
+	t.Run("directory already exists without force flag", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		t.Chdir(tmpDir)
+		assert.Nil(t, os.Mkdir("my-project", 0755))
+
+		mockContext := mocksconsole.NewContext(t)
+		expectFlags(mockContext, "my-project", "", false, false, false)
+
+		_, err := newCommand.getOptions(mockContext)
+		assert.EqualError(t, err, "the directory already exists. use the --force flag to overwrite")
+	})
+
+	t.Run("directory already exists with force flag", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		t.Chdir(tmpDir)
+		assert.Nil(t, os.Mkdir("my-project", 0755))
+
+		mockContext := mocksconsole.NewContext(t)
+		expectFlags(mockContext, "my-project", "", false, true, true)
+
+		opts, err := newCommand.getOptions(mockContext)
+		assert.Nil(t, err)
+		assert.Equal(t, filepath.Join(tmpDir, "my-project"), opts.path)
+	})
+
+	t.Run("no interaction uses defaults without asking", func(t *testing.T) {
+		t.Chdir(t.TempDir())
+
+		mockContext := mocksconsole.NewContext(t)
+		expectFlags(mockContext, "my-project", "", false, false, true)
+
+		opts, err := newCommand.getOptions(mockContext)
+		assert.Nil(t, err)
+		assert.False(t, opts.lite)
+		assert.Equal(t, "goravel", opts.module)
+	})
+
+	t.Run("lite flag skips the project type question", func(t *testing.T) {
+		t.Chdir(t.TempDir())
+
+		mockContext := mocksconsole.NewContext(t)
+		expectFlags(mockContext, "my-project", "github.com/me/app", true, false, false)
+
+		opts, err := newCommand.getOptions(mockContext)
+		assert.Nil(t, err)
+		assert.True(t, opts.lite)
+		assert.Equal(t, "github.com/me/app", opts.module)
 	})
 }

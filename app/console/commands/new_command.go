@@ -36,6 +36,18 @@ var (
 type NewCommand struct {
 }
 
+// newOptions holds everything that decides how a project is created. Handle
+// fills it once, so no other step reads flags on its own.
+type newOptions struct {
+	name          string
+	path          string
+	module        string
+	lite          bool
+	dev           bool
+	force         bool
+	noInteraction bool
+}
+
 func NewNewCommand() *NewCommand {
 	return &NewCommand{}
 }
@@ -94,32 +106,61 @@ func (r *NewCommand) Handle(ctx console.Context) error {
 		return err
 	}
 
-	noInteraction := ctx.OptionBool("no-interaction")
-
-	name, err := r.getProjectName(ctx, noInteraction)
+	opts, err := r.getOptions(ctx)
 	if err != nil {
 		return err
 	}
 
-	projectType, err := r.getProjectType(ctx, noInteraction)
-	if err != nil {
-		return fmt.Errorf("failed to get project type: %w", err)
-	}
-
-	module, err := r.getModuleName(ctx, noInteraction)
-	if err != nil {
+	if err := r.generateProject(ctx, opts); err != nil {
 		return err
 	}
 
-	installLite := projectType == "lite"
-	if err := r.generateProject(ctx, name, module, installLite, noInteraction); err != nil {
-		return err
+	if opts.lite && opts.noInteraction {
+		color.Infoln("No facades were installed. Run [<op=bold>./artisan package:install</>] in the project to add them.")
 	}
-
-	color.Successln("Application ready in [<op=bold>" + name + "</>]. Build something amazing! 🚀🚀")
+	color.Successln("Application ready in [<op=bold>" + opts.name + "</>]. Build something amazing! 🚀🚀")
 	color.Successln("Are you new to Goravel? Please visit https://goravel.dev to get started.")
 
 	return nil
+}
+
+// getOptions reads the argument and flags, then asks for anything still missing.
+func (r *NewCommand) getOptions(ctx console.Context) (newOptions, error) {
+	opts := newOptions{
+		name:          ctx.Argument(0),
+		module:        ctx.Option("module"),
+		lite:          ctx.OptionBool("lite"),
+		dev:           ctx.OptionBool("dev"),
+		force:         ctx.OptionBool("force"),
+		noInteraction: ctx.OptionBool("no-interaction"),
+	}
+
+	var err error
+	if opts.name, err = r.getProjectName(ctx, opts.name, opts.noInteraction); err != nil {
+		return opts, err
+	}
+
+	if opts.path, err = getAbsolutePath(opts.name); err != nil {
+		return opts, err
+	}
+
+	if !opts.force && verifyIfDirectoryExists(opts.path) {
+		return opts, errors.New("the directory already exists. use the --force flag to overwrite")
+	}
+
+	if !opts.lite && !opts.noInteraction {
+		projectType, err := r.getProjectType(ctx)
+		if err != nil {
+			return opts, fmt.Errorf("failed to get project type: %w", err)
+		}
+		opts.lite = projectType == "lite"
+	}
+
+	if opts.module, err = r.getModuleName(ctx, opts.module, opts.noInteraction); err != nil {
+		return opts, err
+	}
+
+	return opts, nil
 }
 
 func (r *NewCommand) cloneGoravel(repo, path string, dev bool) error {
@@ -138,15 +179,10 @@ func (r *NewCommand) cloneGoravel(repo, path string, dev bool) error {
 	return nil
 }
 
-func (r *NewCommand) generateProject(ctx console.Context, name, module string, installLite, noInteraction bool) error {
-	path, err := getAbsolutePath(name)
-	if err != nil {
-		return err
-	}
-
+func (r *NewCommand) generateProject(ctx console.Context, opts newOptions) error {
 	// Build the project in a temp directory next to the target, so a failed
 	// install never leaves a half-built project or touches an existing one.
-	tmpPath, err := os.MkdirTemp(filepath.Dir(path), "."+name+"-*")
+	tmpPath, err := os.MkdirTemp(filepath.Dir(opts.path), "."+opts.name+"-*")
 	if err != nil {
 		return fmt.Errorf("failed to create a temp directory: %w", err)
 	}
@@ -155,15 +191,15 @@ func (r *NewCommand) generateProject(ctx console.Context, name, module string, i
 	}()
 
 	repo := "https://github.com/goravel/goravel.git"
-	if installLite {
+	if opts.lite {
 		repo = "https://github.com/goravel/goravel-lite.git"
 	}
 
-	if err := r.cloneGoravel(repo, tmpPath, ctx.OptionBool("dev")); err != nil {
+	if err := r.cloneGoravel(repo, tmpPath, opts.dev); err != nil {
 		return err
 	}
 
-	if err := r.replaceModule(ctx, tmpPath, module); err != nil {
+	if err := r.replaceModule(ctx, tmpPath, opts.module); err != nil {
 		return err
 	}
 
@@ -173,26 +209,17 @@ func (r *NewCommand) generateProject(ctx console.Context, name, module string, i
 
 	// package:install asks which facades to install, so it is skipped when
 	// questions are turned off.
-	if installLite && !noInteraction {
+	if opts.lite && !opts.noInteraction {
 		if err := r.installFacades(tmpPath); err != nil {
 			return err
 		}
 	}
 
-	if err := moveIntoPlace(tmpPath, path); err != nil {
-		return err
-	}
-
-	if installLite && noInteraction {
-		color.Infoln("No facades were installed. Run [<op=bold>./artisan package:install</>] in the project to add them.")
-	}
-
-	return nil
+	return moveIntoPlace(tmpPath, opts.path)
 }
 
-func (r *NewCommand) getModuleName(ctx console.Context, noInteraction bool) (string, error) {
+func (r *NewCommand) getModuleName(ctx console.Context, module string, noInteraction bool) (string, error) {
 	var err error
-	module := ctx.Option("module")
 
 	if module == "" && noInteraction {
 		module = support.DefaultModuleName
@@ -222,9 +249,8 @@ func (r *NewCommand) getModuleName(ctx console.Context, noInteraction bool) (str
 	return module, nil
 }
 
-func (r *NewCommand) getProjectName(ctx console.Context, noInteraction bool) (string, error) {
+func (r *NewCommand) getProjectName(ctx console.Context, name string, noInteraction bool) (string, error) {
 	var err error
-	name := ctx.Argument(0)
 
 	if name == "" && noInteraction {
 		return "", errors.New("the project name is required, e.g. goravel new example-app")
@@ -257,28 +283,10 @@ func (r *NewCommand) getProjectName(ctx console.Context, noInteraction bool) (st
 		return "", errors.New(`the name can't be "." or ".."`)
 	}
 
-	path, err := getAbsolutePath(name)
-	if err != nil {
-		return "", err
-	}
-
-	force := ctx.OptionBool("force")
-	if !force && verifyIfDirectoryExists(path) {
-		return "", errors.New("the directory already exists. use the --force flag to overwrite")
-	}
-
 	return name, nil
 }
 
-func (r *NewCommand) getProjectType(ctx console.Context, noInteraction bool) (string, error) {
-	if ctx.OptionBool("lite") {
-		return "lite", nil
-	}
-
-	if noInteraction {
-		return "goravel", nil
-	}
-
+func (r *NewCommand) getProjectType(ctx console.Context) (string, error) {
 	options := []console.Choice{
 		{Key: "Goravel      - Includes all facades", Value: "goravel"},
 		{Key: "Goravel Lite - Only includes essential facades", Value: "lite"},
