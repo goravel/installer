@@ -3,6 +3,7 @@ package commands
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/goravel/framework/contracts/console"
@@ -739,4 +740,32 @@ func TestHandleLiteWithoutInteraction(t *testing.T) {
 	// package:install is not expected: it asks questions, so it must be skipped
 	assert.Nil(t, newCommand.Handle(mockContext))
 	assert.FileExists(t, filepath.Join(tmpDir, "lite-app", ".env"))
+}
+
+func TestReplaceModuleKeepsLineEndingsAndLongLines(t *testing.T) {
+	newCommand := &NewCommand{}
+	tmpDir := t.TempDir()
+
+	modFile := filepath.Join(tmpDir, "go.mod")
+	goFile := filepath.Join(tmpDir, "main.go")
+	// A line longer than bufio.Scanner's 64 KB limit
+	longLine := "// " + strings.Repeat("x", 70*1024)
+
+	assert.Nil(t, os.WriteFile(modFile, []byte("module goravel\r\n\r\ngo 1.25.0\r\n"), 0644))
+	assert.Nil(t, os.WriteFile(goFile, []byte("package main\r\n\r\nimport \"goravel/app\"\r\n"+longLine+"\r\n"), 0644))
+
+	mockContext := mocksconsole.NewContext(t)
+	mockContext.EXPECT().Spinner(mock.Anything, mock.Anything).RunAndReturn(func(_ string, opt console.SpinnerOption) error {
+		return opt.Action()
+	}).Once()
+
+	assert.Nil(t, newCommand.replaceModule(mockContext, tmpDir, "github.com/me/app"))
+
+	modContent, err := os.ReadFile(modFile)
+	assert.Nil(t, err)
+	assert.Equal(t, "module github.com/me/app\r\n\r\ngo 1.25.0\r\n", string(modContent))
+
+	goContent, err := os.ReadFile(goFile)
+	assert.Nil(t, err)
+	assert.Equal(t, "package main\r\n\r\nimport \"github.com/me/app/app\"\r\n"+longLine+"\r\n", string(goContent))
 }

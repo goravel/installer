@@ -1,7 +1,7 @@
 package commands
 
 import (
-	"bufio"
+	"bytes"
 	"fmt"
 	"io/fs"
 	"os"
@@ -25,7 +25,7 @@ import (
 var (
 	moduleNameRegexp  = regexp.MustCompile(`^[a-zA-Z0-9./_~-]+$`)
 	projectNameRegexp = regexp.MustCompile(`^[\w.-]+$`)
-	goModModuleRegexp = regexp.MustCompile(`^module\s+goravel\b`)
+	goModModuleRegexp = regexp.MustCompile(`(?m)^module[ \t]+goravel\b`)
 	goImportRegexp    = regexp.MustCompile(`"goravel/([^"]+)"`)
 	appKeyRegexp      = regexp.MustCompile(`(?m)^APP_KEY=[^\r\n]*`)
 
@@ -387,43 +387,34 @@ func (r *NewCommand) replaceModule(ctx console.Context, path, module string) err
 			module = strings.Trim(module, "/")
 
 			return filepath.WalkDir(path, func(filePath string, entry fs.DirEntry, err error) error {
-				if err != nil || entry.IsDir() || (!strings.HasSuffix(filePath, ".go") && !strings.HasSuffix(filePath, ".mod")) {
+				if err != nil || entry.IsDir() {
 					return err
 				}
 
-				fileContent, err := os.Open(filePath)
+				var re *regexp.Regexp
+				var replacement string
+				switch {
+				case strings.HasSuffix(filePath, ".mod"):
+					re, replacement = goModModuleRegexp, "module "+module
+				case strings.HasSuffix(filePath, ".go"):
+					re, replacement = goImportRegexp, `"`+module+`/$1"`
+				default:
+					return nil
+				}
+
+				// The whole file is rewritten at once, so line endings and long
+				// lines are kept as they are.
+				content, err := os.ReadFile(filePath)
 				if err != nil {
-					return fmt.Errorf("error opening %s: %w", filePath, err)
-				}
-				defer errors.Ignore(fileContent.Close)
-
-				var newContent strings.Builder
-				var modified bool
-				scanner := bufio.NewScanner(fileContent)
-				for scanner.Scan() {
-					line := scanner.Text()
-					var newLine string
-
-					if strings.HasSuffix(filePath, ".mod") {
-						newLine = goModModuleRegexp.ReplaceAllString(line, "module "+module)
-					} else {
-						newLine = goImportRegexp.ReplaceAllString(line, `"`+module+`/$1"`)
-					}
-
-					if newLine != line {
-						modified = true
-					}
-					newContent.WriteString(newLine + "\n")
-				}
-
-				if err := scanner.Err(); err != nil {
 					return fmt.Errorf("error reading %s: %w", filePath, err)
 				}
 
-				if modified {
-					return os.WriteFile(filePath, []byte(newContent.String()), 0644)
+				newContent := re.ReplaceAll(content, []byte(replacement))
+				if bytes.Equal(newContent, content) {
+					return nil
 				}
-				return nil
+
+				return os.WriteFile(filePath, newContent, 0644)
 			})
 		},
 	}); err != nil {
