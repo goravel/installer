@@ -36,8 +36,8 @@ var (
 type NewCommand struct {
 }
 
-// newOptions holds everything that decides how a project is created. Handle
-// fills it once, so no other step reads flags on its own.
+// newOptions holds everything that decides how a project is created.
+// getOptions fills it once, so no other step reads flags on its own.
 type newOptions struct {
 	name          string
 	path          string
@@ -46,6 +46,12 @@ type newOptions struct {
 	dev           bool
 	force         bool
 	noInteraction bool
+}
+
+// skipFacades reports whether package:install is skipped. It asks which
+// facades to install, so it can't run when questions are turned off.
+func (r newOptions) skipFacades() bool {
+	return r.lite && r.noInteraction
 }
 
 func NewNewCommand() *NewCommand {
@@ -115,7 +121,7 @@ func (r *NewCommand) Handle(ctx console.Context) error {
 		return err
 	}
 
-	if opts.lite && opts.noInteraction {
+	if opts.skipFacades() {
 		color.Infoln("No facades were installed. Run [<op=bold>./artisan package:install</>] in the project to add them.")
 	}
 	color.Successln("Application ready in [<op=bold>" + opts.name + "</>]. Build something amazing! 🚀🚀")
@@ -190,6 +196,12 @@ func (r *NewCommand) generateProject(ctx console.Context, opts newOptions) error
 		_ = os.RemoveAll(tmpPath)
 	}()
 
+	// MkdirTemp creates the directory as owner-only, and it keeps that mode
+	// when moved into place. Use the mode git clone would have used.
+	if err := os.Chmod(tmpPath, 0755); err != nil {
+		return fmt.Errorf("failed to set the project directory permissions: %w", err)
+	}
+
 	repo := "https://github.com/goravel/goravel.git"
 	if opts.lite {
 		repo = "https://github.com/goravel/goravel-lite.git"
@@ -207,15 +219,13 @@ func (r *NewCommand) generateProject(ctx console.Context, opts newOptions) error
 		return err
 	}
 
-	// package:install asks which facades to install, so it is skipped when
-	// questions are turned off.
-	if opts.lite && !opts.noInteraction {
+	if opts.lite && !opts.skipFacades() {
 		if err := r.installFacades(tmpPath); err != nil {
 			return err
 		}
 	}
 
-	return moveIntoPlace(tmpPath, opts.path)
+	return moveIntoPlace(tmpPath, opts.path, opts.force)
 }
 
 func (r *NewCommand) getModuleName(ctx console.Context, module string, noInteraction bool) (string, error) {
@@ -344,7 +354,11 @@ func writeEnvFile(path string) error {
 	if appKeyRegexp.MatchString(env) {
 		env = appKeyRegexp.ReplaceAllLiteralString(env, appKey)
 	} else {
-		env = strings.TrimRight(env, "\n") + "\n" + appKey + "\n"
+		newline := "\n"
+		if strings.Contains(env, "\r\n") {
+			newline = "\r\n"
+		}
+		env = strings.TrimRight(env, "\r\n") + newline + appKey + newline
 	}
 
 	return os.WriteFile(filepath.Join(path, ".env"), []byte(env), 0644)
@@ -446,11 +460,19 @@ func getAbsolutePath(name string) (string, error) {
 	return filepath.Clean(filepath.Join(pwd, name)), nil
 }
 
-// moveIntoPlace moves the finished project from src to dst. An existing dst
-// (only possible with --force) is moved aside first and is put back if the
-// move fails, so it is never lost.
-func moveIntoPlace(src, dst string) error {
-	if !verifyIfDirectoryExists(dst) {
+// moveIntoPlace moves the finished project from src to dst. With force, an
+// existing dst is moved aside first and is put back if the move fails, so it
+// is never lost.
+func moveIntoPlace(src, dst string, force bool) error {
+	exists := verifyIfDirectoryExists(dst)
+
+	// Checked again here because the directory may have been created while
+	// the project was being built.
+	if exists && !force {
+		return errors.New("the directory already exists. use the --force flag to overwrite")
+	}
+
+	if !exists {
 		if err := os.Rename(src, dst); err != nil {
 			return fmt.Errorf("failed to move the project into place: %w", err)
 		}
@@ -471,7 +493,7 @@ func moveIntoPlace(src, dst string) error {
 
 	if err := os.Rename(src, dst); err != nil {
 		if restoreErr := os.Rename(backup, dst); restoreErr != nil {
-			return fmt.Errorf("failed to move the project into place: %w. The existing directory was kept at %s", err, backup)
+			return fmt.Errorf("failed to move the project into place: %w; also failed to restore the existing directory, it is kept at %q: %w", err, backup, restoreErr)
 		}
 		_ = os.RemoveAll(backupDir)
 

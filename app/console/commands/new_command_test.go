@@ -98,6 +98,13 @@ func TestGetProjectName(t *testing.T) {
 		assert.Equal(t, "my.project", name)
 	})
 
+	t.Run("project name is required without interaction", func(t *testing.T) {
+		mockContext := mocksconsole.NewContext(t)
+
+		_, err := newCommand.getProjectName(mockContext, "", true)
+		assert.EqualError(t, err, "the project name is required, e.g. goravel new example-app")
+	})
+
 	t.Run("rejects the current and parent directory", func(t *testing.T) {
 		for _, name := range []string{".", ".."} {
 			mockContext := mocksconsole.NewContext(t)
@@ -236,8 +243,13 @@ func main() {}`), 0644)
 	err = newCommand.Handle(mockContext)
 	assert.Nil(t, err)
 
-	// Verify the project was created
+	// Verify the project was created with the same permissions git clone uses
 	assert.DirExists(t, projectPath)
+	if !env.IsWindows() {
+		info, err := os.Stat(projectPath)
+		assert.Nil(t, err)
+		assert.Equal(t, os.FileMode(0755), info.Mode().Perm())
+	}
 
 	// Verify .env was created
 	envFile := filepath.Join(projectPath, ".env")
@@ -519,6 +531,8 @@ func TestCheckRequiredTools(t *testing.T) {
 
 func TestMoveIntoPlace(t *testing.T) {
 	newProject := func(t *testing.T, dir, content string) string {
+		t.Helper()
+
 		path := filepath.Join(dir, "new")
 		assert.Nil(t, os.MkdirAll(path, 0755))
 		assert.Nil(t, os.WriteFile(filepath.Join(path, "file.txt"), []byte(content), 0644))
@@ -530,7 +544,7 @@ func TestMoveIntoPlace(t *testing.T) {
 		src := newProject(t, dir, "new")
 		dst := filepath.Join(dir, "app")
 
-		assert.Nil(t, moveIntoPlace(src, dst))
+		assert.Nil(t, moveIntoPlace(src, dst, false))
 		assert.NoDirExists(t, src)
 		assert.FileExists(t, filepath.Join(dst, "file.txt"))
 	})
@@ -542,13 +556,24 @@ func TestMoveIntoPlace(t *testing.T) {
 		assert.Nil(t, os.MkdirAll(dst, 0755))
 		assert.Nil(t, os.WriteFile(filepath.Join(dst, "old.txt"), []byte("old"), 0644))
 
-		assert.Nil(t, moveIntoPlace(src, dst))
+		assert.Nil(t, moveIntoPlace(src, dst, true))
 		assert.FileExists(t, filepath.Join(dst, "file.txt"))
 		assert.NoFileExists(t, filepath.Join(dst, "old.txt"))
 
 		entries, err := os.ReadDir(dir)
 		assert.Nil(t, err)
 		assert.Len(t, entries, 1)
+	})
+
+	t.Run("refuses an existing directory without force", func(t *testing.T) {
+		dir := t.TempDir()
+		src := newProject(t, dir, "new")
+		dst := filepath.Join(dir, "app")
+		assert.Nil(t, os.MkdirAll(dst, 0755))
+
+		err := moveIntoPlace(src, dst, false)
+		assert.EqualError(t, err, "the directory already exists. use the --force flag to overwrite")
+		assert.DirExists(t, src)
 	})
 
 	t.Run("restores the existing directory when the move fails", func(t *testing.T) {
@@ -558,7 +583,7 @@ func TestMoveIntoPlace(t *testing.T) {
 		assert.Nil(t, os.WriteFile(filepath.Join(dst, "old.txt"), []byte("old"), 0644))
 
 		// src doesn't exist, so the move fails after dst was moved aside
-		err := moveIntoPlace(filepath.Join(dir, "missing"), dst)
+		err := moveIntoPlace(filepath.Join(dir, "missing"), dst, true)
 		assert.ErrorContains(t, err, "failed to move the project into place")
 		assert.FileExists(t, filepath.Join(dst, "old.txt"))
 
@@ -568,18 +593,12 @@ func TestMoveIntoPlace(t *testing.T) {
 	})
 }
 
-func TestNoInteraction(t *testing.T) {
+func TestGetModuleName(t *testing.T) {
 	newCommand := &NewCommand{}
 
-	t.Run("project name is required", func(t *testing.T) {
+	t.Run("defaults to goravel without interaction", func(t *testing.T) {
 		mockContext := mocksconsole.NewContext(t)
 
-		_, err := newCommand.getProjectName(mockContext, "", true)
-		assert.EqualError(t, err, "the project name is required, e.g. goravel new example-app")
-	})
-
-	t.Run("module defaults to goravel", func(t *testing.T) {
-		mockContext := mocksconsole.NewContext(t)
 		module, err := newCommand.getModuleName(mockContext, "", true)
 		assert.Nil(t, err)
 		assert.Equal(t, "goravel", module)
@@ -596,6 +615,17 @@ func TestWriteEnvFile(t *testing.T) {
 		content, err := os.ReadFile(filepath.Join(tmpDir, ".env"))
 		assert.Nil(t, err)
 		assert.Regexp(t, `^APP_NAME=Goravel\r\nAPP_KEY=[0-9a-zA-Z]{32}\r\nAPP_DEBUG=true\r\n$`, string(content))
+	})
+
+	t.Run("adds APP_KEY with the file's own line ending", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		assert.Nil(t, os.WriteFile(filepath.Join(tmpDir, ".env.example"), []byte("APP_NAME=Goravel\r\n"), 0644))
+
+		assert.Nil(t, writeEnvFile(tmpDir))
+
+		content, err := os.ReadFile(filepath.Join(tmpDir, ".env"))
+		assert.Nil(t, err)
+		assert.Regexp(t, `^APP_NAME=Goravel\r\nAPP_KEY=[0-9a-zA-Z]{32}\r\n$`, string(content))
 	})
 
 	t.Run("adds APP_KEY when it is missing", func(t *testing.T) {
@@ -670,4 +700,43 @@ func TestGetOptions(t *testing.T) {
 		assert.True(t, opts.lite)
 		assert.Equal(t, "github.com/me/app", opts.module)
 	})
+}
+
+func TestHandleLiteWithoutInteraction(t *testing.T) {
+	newCommand := &NewCommand{}
+
+	mockFactory := frameworkmock.Factory()
+	mockProcess := mockFactory.Process()
+
+	tmpDir := t.TempDir()
+	t.Chdir(tmpDir)
+
+	mockContext := mocksconsole.NewContext(t)
+	mockContext.EXPECT().NewLine().Once()
+	mockContext.EXPECT().Argument(0).Return("lite-app").Once()
+	mockContext.EXPECT().Option("module").Return("").Once()
+	mockContext.EXPECT().OptionBool("lite").Return(true).Once()
+	mockContext.EXPECT().OptionBool("dev").Return(false).Once()
+	mockContext.EXPECT().OptionBool("force").Return(false).Once()
+	mockContext.EXPECT().OptionBool("no-interaction").Return(true).Once()
+
+	// Clones the lite skeleton
+	mockCloneResult := mocksprocess.NewResult(t)
+	mockCloneResult.EXPECT().Failed().Return(false).Once()
+	mockProcess.EXPECT().Run("git", "clone", "--depth=1", "https://github.com/goravel/goravel-lite.git", mock.Anything).RunAndReturn(func(_ string, args ...string) process.Result {
+		clonePath := args[len(args)-1]
+		assert.Nil(t, os.WriteFile(filepath.Join(clonePath, ".env.example"), []byte("APP_KEY=\n"), 0644))
+
+		return mockCloneResult
+	}).Once()
+
+	mockProcess.EXPECT().WithSpinner("Installing dependencies").Return(mockProcess).Once()
+	mockProcess.EXPECT().Path(mock.Anything).Return(mockProcess).Once()
+	mockModTidyResult := mocksprocess.NewResult(t)
+	mockModTidyResult.EXPECT().Failed().Return(false).Once()
+	mockProcess.EXPECT().Run("go", "mod", "tidy").Return(mockModTidyResult).Once()
+
+	// package:install is not expected: it asks questions, so it must be skipped
+	assert.Nil(t, newCommand.Handle(mockContext))
+	assert.FileExists(t, filepath.Join(tmpDir, "lite-app", ".env"))
 }
