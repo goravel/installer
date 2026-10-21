@@ -36,8 +36,7 @@ var (
 type NewCommand struct {
 }
 
-// newOptions holds everything that decides how a project is created.
-// getOptions fills it once, so no other step reads flags on its own.
+// newOptions is filled once by getOptions, so no other step reads flags on its own.
 type newOptions struct {
 	name          string
 	path          string
@@ -48,8 +47,8 @@ type newOptions struct {
 	noInteraction bool
 }
 
-// skipFacades reports whether package:install is skipped. It asks which
-// facades to install, so it can't run when questions are turned off.
+// skipFacades reports whether package:install is skipped. package:install
+// asks which facades to install, so it can't run when questions are turned off.
 func (r newOptions) skipFacades() bool {
 	return r.lite && r.noInteraction
 }
@@ -130,7 +129,6 @@ func (r *NewCommand) Handle(ctx console.Context) error {
 	return nil
 }
 
-// getOptions reads the argument and flags, then asks for anything still missing.
 func (r *NewCommand) getOptions(ctx console.Context) (newOptions, error) {
 	opts := newOptions{
 		name:          ctx.Argument(0),
@@ -197,7 +195,8 @@ func (r *NewCommand) generateProject(ctx console.Context, opts newOptions) error
 	}()
 
 	// MkdirTemp creates the directory as owner-only, and it keeps that mode
-	// when moved into place. Use the mode git clone would have used.
+	// when moved into place. Use 0755, which is what git clone gives with the
+	// usual umask.
 	if err := os.Chmod(tmpPath, 0755); err != nil {
 		return fmt.Errorf("failed to set the project directory permissions: %w", err)
 	}
@@ -339,9 +338,8 @@ func (r *NewCommand) initProject(path string) error {
 	return nil
 }
 
-// writeEnvFile creates .env from .env.example with a new APP_KEY. It sets the
-// key directly instead of running key:generate, which would build the whole
-// project first and doesn't report its own errors.
+// writeEnvFile sets APP_KEY directly instead of running key:generate, which
+// builds the whole project first and still succeeds when writing the key fails.
 func writeEnvFile(path string) error {
 	content, err := os.ReadFile(filepath.Join(path, ".env.example"))
 	if err != nil {
@@ -430,7 +428,6 @@ func checkModuleName(module string) bool {
 	return moduleNameRegexp.MatchString(module)
 }
 
-// checkRequiredTools checks that git and go are installed before anything runs.
 func checkRequiredTools() error {
 	for _, tool := range []string{"git", "go"} {
 		if _, err := lookPath(tool); err != nil {
@@ -441,7 +438,6 @@ func checkRequiredTools() error {
 	return nil
 }
 
-// getAbsolutePath returns the absolute path of the project directory.
 func getAbsolutePath(name string) (string, error) {
 	pwd, err := os.Getwd()
 	if err != nil {
