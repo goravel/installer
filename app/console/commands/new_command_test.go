@@ -3,6 +3,7 @@ package commands
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/goravel/framework/contracts/console"
@@ -13,532 +14,566 @@ import (
 	frameworkmock "github.com/goravel/framework/testing/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/suite"
 )
 
-func TestCheckModuleName(t *testing.T) {
-	t.Run("valid", func(t *testing.T) {
-		validModules := []string{
-			"goravel",
-			"github.com/goravel/framework",
-			"github.com/user/project",
-			"example.com/my-project",
-			"example.com/my_project",
-			"gitlab.com/user/project/submodule",
-			"project-name",
-			"project_name",
-			"project.name",
-			"example.com/~user/project",
-			"a",
-			"123",
-			"example.com/project-123_test.v2",
-		}
+const (
+	invalidNameError = "the name only supports letters, numbers, dashes, underscores, and periods"
+	appKeyPattern    = "[0-9a-zA-Z]{32}"
+)
 
-		for _, module := range validModules {
-			t.Run("valid_"+module, func(t *testing.T) {
-				assert.True(t, checkModuleName(module), "Expected %s to be valid", module)
-			})
-		}
-	})
+type NewCommandTestSuite struct {
+	suite.Suite
+	newCommand  *NewCommand
+	mockContext *mocksconsole.Context
+	mockProcess *mocksprocess.Process
+	tmpDir      string
+}
 
-	t.Run("invalid", func(t *testing.T) {
-		invalidModules := []string{
-			"invalid:module",
-			"module with spaces",
-			"github.com/user/project!",
-			"example.com/project@version",
-			"project#name",
-			"project$name",
-			"project%name",
-			"project&name",
-			"project*name",
-			"project(name)",
-			"project[name]",
-			"project{name}",
-			"project|name",
-			"project\\name",
-			"project;name",
-			"project'name",
-			"project\"name",
-			"project<name>",
-			"project?name",
-		}
+func TestNewCommandTestSuite(t *testing.T) {
+	suite.Run(t, &NewCommandTestSuite{})
+}
 
-		for _, module := range invalidModules {
-			t.Run("invalid_"+module, func(t *testing.T) {
-				assert.False(t, checkModuleName(module), "Expected %s to be invalid", module)
-			})
-		}
+func (s *NewCommandTestSuite) SetupTest() {
+	t := s.T()
+	s.newCommand = NewNewCommand()
+	s.mockContext = mocksconsole.NewContext(t)
+	s.tmpDir = t.TempDir()
+	t.Chdir(s.tmpDir)
+
+	// The process mock has no *testing.T, so its expectations are checked here.
+	mockProcess := frameworkmock.Factory().Process()
+	s.mockProcess = mockProcess
+	t.Cleanup(func() {
+		mockProcess.AssertExpectations(t)
 	})
 }
 
-func TestGetProjectName(t *testing.T) {
-	newCommand := &NewCommand{}
-
-	t.Run("valid project name provided", func(t *testing.T) {
-		mockContext := mocksconsole.NewContext(t)
-		mockContext.EXPECT().Argument(0).Return("my-project").Once()
-		mockContext.EXPECT().OptionBool("force").Return(false).Once()
-
-		name, err := newCommand.getProjectName(mockContext)
-		assert.Nil(t, err)
-		assert.Equal(t, "my-project", name)
-	})
-
-	t.Run("valid project name with underscores", func(t *testing.T) {
-		mockContext := mocksconsole.NewContext(t)
-		mockContext.EXPECT().Argument(0).Return("my_project").Once()
-		mockContext.EXPECT().OptionBool("force").Return(false).Once()
-
-		name, err := newCommand.getProjectName(mockContext)
-		assert.Nil(t, err)
-		assert.Equal(t, "my_project", name)
-	})
-
-	t.Run("valid project name with periods", func(t *testing.T) {
-		mockContext := mocksconsole.NewContext(t)
-		mockContext.EXPECT().Argument(0).Return("my.project").Once()
-		mockContext.EXPECT().OptionBool("force").Return(false).Once()
-
-		name, err := newCommand.getProjectName(mockContext)
-		assert.Nil(t, err)
-		assert.Equal(t, "my.project", name)
-	})
-
-	t.Run("valid project name with mixed characters", func(t *testing.T) {
-		mockContext := mocksconsole.NewContext(t)
-		mockContext.EXPECT().Argument(0).Return("MyProject_123-v2.0").Once()
-		mockContext.EXPECT().OptionBool("force").Return(false).Once()
-
-		name, err := newCommand.getProjectName(mockContext)
-		assert.Nil(t, err)
-		assert.Equal(t, "MyProject_123-v2.0", name)
-	})
-
-	t.Run("invalid project name with special characters", func(t *testing.T) {
-		mockContext := mocksconsole.NewContext(t)
-		mockContext.EXPECT().Argument(0).Return("my@project").Once()
-
-		name, err := newCommand.getProjectName(mockContext)
-		assert.NotNil(t, err)
-		assert.Equal(t, "the name only supports letters, numbers, dashes, underscores, and periods", err.Error())
-		assert.Equal(t, "", name)
-	})
-
-	t.Run("invalid project name with spaces", func(t *testing.T) {
-		mockContext := mocksconsole.NewContext(t)
-		mockContext.EXPECT().Argument(0).Return("my project").Once()
-
-		name, err := newCommand.getProjectName(mockContext)
-		assert.NotNil(t, err)
-		assert.Equal(t, "the name only supports letters, numbers, dashes, underscores, and periods", err.Error())
-		assert.Equal(t, "", name)
-	})
-
-	t.Run("invalid project name with slash", func(t *testing.T) {
-		mockContext := mocksconsole.NewContext(t)
-		mockContext.EXPECT().Argument(0).Return("my/project").Once()
-
-		name, err := newCommand.getProjectName(mockContext)
-		assert.NotNil(t, err)
-		assert.Equal(t, "the name only supports letters, numbers, dashes, underscores, and periods", err.Error())
-		assert.Equal(t, "", name)
-	})
-
-	t.Run("directory already exists without force flag", func(t *testing.T) {
-		tmpDir, err := os.MkdirTemp("", "test-project-exists")
-		assert.Nil(t, err)
-		defer func() {
-			_ = os.RemoveAll(tmpDir)
-		}()
-
-		projectName := filepath.Base(tmpDir)
-		currentDir, err := os.Getwd()
-		assert.Nil(t, err)
-
-		// Change to the parent directory temporarily
-		parentDir := filepath.Dir(tmpDir)
-		err = os.Chdir(parentDir)
-		assert.Nil(t, err)
-		defer func() {
-			_ = os.Chdir(currentDir)
-		}()
-
-		mockContext := mocksconsole.NewContext(t)
-		mockContext.EXPECT().Argument(0).Return(projectName).Once()
-		mockContext.EXPECT().OptionBool("force").Return(false).Once()
-
-		name, err := newCommand.getProjectName(mockContext)
-		assert.NotNil(t, err)
-		assert.Equal(t, "the directory already exists. use the --force flag to overwrite", err.Error())
-		assert.Equal(t, "", name)
-	})
-
-	t.Run("directory already exists with force flag", func(t *testing.T) {
-		tmpDir, err := os.MkdirTemp("", "test-project-force")
-		assert.Nil(t, err)
-		defer func() {
-			_ = os.RemoveAll(tmpDir)
-		}()
-
-		projectName := filepath.Base(tmpDir)
-		currentDir, err := os.Getwd()
-		assert.Nil(t, err)
-
-		// Change to the parent directory temporarily
-		parentDir := filepath.Dir(tmpDir)
-		err = os.Chdir(parentDir)
-		assert.Nil(t, err)
-		defer func() {
-			_ = os.Chdir(currentDir)
-		}()
-
-		mockContext := mocksconsole.NewContext(t)
-		mockContext.EXPECT().Argument(0).Return(projectName).Once()
-		mockContext.EXPECT().OptionBool("force").Return(true).Once()
-
-		name, err := newCommand.getProjectName(mockContext)
-		assert.Nil(t, err)
-		assert.Equal(t, projectName, name)
-	})
+func (s *NewCommandTestSuite) SetupSubTest() {
+	s.SetupTest()
 }
 
-func TestHandle(t *testing.T) {
-	newCommand := &NewCommand{}
+type newFlags struct {
+	name, module                    string
+	lite, dev, force, noInteraction bool
+}
 
-	mockFactory := frameworkmock.Factory()
-	mockProcess := mockFactory.Process()
+func (s *NewCommandTestSuite) expectFlags(flags newFlags) {
+	s.mockContext.EXPECT().Argument(0).Return(flags.name).Once()
+	s.mockContext.EXPECT().Option("module").Return(flags.module).Once()
+	s.mockContext.EXPECT().OptionBool("lite").Return(flags.lite).Once()
+	s.mockContext.EXPECT().OptionBool("dev").Return(flags.dev).Once()
+	s.mockContext.EXPECT().OptionBool("force").Return(flags.force).Once()
+	s.mockContext.EXPECT().OptionBool("no-interaction").Return(flags.noInteraction).Once()
+}
 
-	tmpDir, err := os.MkdirTemp("", "test-handle-happy")
-	assert.Nil(t, err)
-	defer func() {
-		_ = os.RemoveAll(tmpDir)
-	}()
+func (s *NewCommandTestSuite) newResult(err error) *mocksprocess.Result {
+	result := mocksprocess.NewResult(s.T())
+	result.EXPECT().Failed().Return(err != nil).Once()
+	if err != nil {
+		result.EXPECT().Error().Return(err).Once()
+	}
 
-	currentDir, err := os.Getwd()
-	assert.Nil(t, err)
-	err = os.Chdir(tmpDir)
-	assert.Nil(t, err)
-	defer func() {
-		_ = os.Chdir(currentDir)
-	}()
+	return result
+}
 
-	projectName := "test-project"
-	moduleName := "github.com/test/project"
-	projectPath := filepath.Join(tmpDir, projectName)
+func (s *NewCommandTestSuite) expectClone(args []string, files map[string]string, err error) {
+	result := s.newResult(err)
+	cloneArgs := []any{"clone"}
+	for _, arg := range args {
+		cloneArgs = append(cloneArgs, arg)
+	}
+	cloneArgs = append(cloneArgs, mock.Anything)
 
-	// Create mock context
-	mockContext := mocksconsole.NewContext(t)
+	s.mockProcess.EXPECT().Run("git", cloneArgs...).RunAndReturn(func(_ string, args ...string) process.Result {
+		for name, content := range files {
+			s.Require().NoError(os.WriteFile(filepath.Join(args[len(args)-1], name), []byte(content), 0644))
+		}
 
-	// Mock printWelcome (NewLine call)
-	mockContext.EXPECT().NewLine().Once()
-
-	// Mock getProjectName
-	mockContext.EXPECT().Argument(0).Return(projectName).Once()
-	mockContext.EXPECT().OptionBool("force").Return(false).Once()
-
-	// Mock getProjectType
-	mockContext.EXPECT().Choice("Which do you want to install?", mock.MatchedBy(func(choices []console.Choice) bool {
-		return len(choices) == 2
-	})).Return("goravel", nil).Once()
-
-	// Mock getModuleName
-	mockContext.EXPECT().Option("module").Return(moduleName).Once()
-
-	// Mock generateProject - cloneGoravel
-	mockContext.EXPECT().OptionBool("dev").Return(false).Once()
-	mockCloneResult := mocksprocess.NewResult(t)
-	mockCloneResult.EXPECT().Failed().Return(false).Once()
-	mockProcess.EXPECT().Run("git", "clone", "--depth=1", "https://github.com/goravel/goravel.git", mock.Anything).RunAndReturn(func(command string, args ...string) process.Result {
-		// Simulate git clone by creating the project directory structure
-		err := os.MkdirAll(projectPath, 0755)
-		assert.Nil(t, err)
-
-		// Create go.mod file
-		modFile := filepath.Join(projectPath, "go.mod")
-		err = os.WriteFile(modFile, []byte("module goravel\n"), 0644)
-		assert.Nil(t, err)
-
-		// Create .env.example file
-		envExample := filepath.Join(projectPath, ".env.example")
-		err = os.WriteFile(envExample, []byte("APP_NAME=TestApp\n"), 0644)
-		assert.Nil(t, err)
-
-		// Create a simple go file to test module replacement
-		mainFile := filepath.Join(projectPath, "main.go")
-		err = os.WriteFile(mainFile, []byte(`package main
-import "goravel/app"
-func main() {}`), 0644)
-		assert.Nil(t, err)
-
-		return mockCloneResult
+		return result
 	}).Once()
+}
 
-	// Mock replaceModule
-	mockContext.EXPECT().Spinner("Updating module name to \""+moduleName+"\"", mock.MatchedBy(func(opt console.SpinnerOption) bool {
-		return opt.Action != nil
-	})).RunAndReturn(func(_ string, opt console.SpinnerOption) error {
-		// Execute the actual action
+func (s *NewCommandTestSuite) expectModTidy(err error) {
+	s.mockProcess.EXPECT().WithSpinner("Installing dependencies").Return(s.mockProcess).Once()
+	s.mockProcess.EXPECT().Path(mock.Anything).Return(s.mockProcess).Once()
+	s.mockProcess.EXPECT().Run("go", "mod", "tidy").Return(s.newResult(err)).Once()
+}
+
+func (s *NewCommandTestSuite) expectSpinner() {
+	s.mockContext.EXPECT().Spinner(mock.Anything, mock.Anything).RunAndReturn(func(_ string, opt console.SpinnerOption) error {
 		return opt.Action()
 	}).Once()
-
-	// Mock initProject - mod tidy
-	mockProcess.EXPECT().WithSpinner("Installing dependencies").Return(mockProcess).Once()
-	mockProcess.EXPECT().Path(mock.Anything).Return(mockProcess).Once()
-	mockModTidyResult := mocksprocess.NewResult(t)
-	mockModTidyResult.EXPECT().Failed().Return(false).Once()
-	mockProcess.EXPECT().Run("go", "mod", "tidy").Return(mockModTidyResult).Once()
-
-	// Mock initProject - key:generate
-	mockProcess.EXPECT().WithSpinner("Generating application key").Return(mockProcess).Once()
-	mockProcess.EXPECT().Path(mock.Anything).Return(mockProcess).Once()
-	mockKeyGenResult := mocksprocess.NewResult(t)
-	mockKeyGenResult.EXPECT().Failed().Return(false).Once()
-	mockProcess.EXPECT().Run("go", "run", ".", "artisan", "key:generate").Return(mockKeyGenResult).Once()
-
-	// Execute the Handle function
-	err = newCommand.Handle(mockContext)
-	assert.Nil(t, err)
-
-	// Verify the project was created
-	assert.DirExists(t, projectPath)
-
-	// Verify .env was created
-	envFile := filepath.Join(projectPath, ".env")
-	assert.FileExists(t, envFile)
-
-	// Verify module was replaced in go.mod
-	modFile := filepath.Join(projectPath, "go.mod")
-	modContent, err := os.ReadFile(modFile)
-	assert.Nil(t, err)
-	assert.Contains(t, string(modContent), "module "+moduleName)
-
-	// Verify module was replaced in go files
-	mainFile := filepath.Join(projectPath, "main.go")
-	mainContent, err := os.ReadFile(mainFile)
-	assert.Nil(t, err)
-	assert.Contains(t, string(mainContent), `"`+moduleName+`/app"`)
 }
 
-func TestInitProject(t *testing.T) {
-	newCommand := &NewCommand{}
+func (s *NewCommandTestSuite) readFile(path string) string {
+	content, err := os.ReadFile(path)
+	s.Require().NoError(err)
 
-	t.Run("successfully initializes project", func(t *testing.T) {
-		mockFactory := frameworkmock.Factory()
-		mockProcess := mockFactory.Process()
-
-		tmpDir, err := os.MkdirTemp("", "test-init-project")
-		assert.Nil(t, err)
-		defer func() {
-			_ = os.RemoveAll(tmpDir)
-		}()
-
-		// Create .git and .github directories
-		gitDir := filepath.Join(tmpDir, ".git")
-		githubDir := filepath.Join(tmpDir, ".github")
-		err = os.MkdirAll(gitDir, 0755)
-		assert.Nil(t, err)
-		err = os.MkdirAll(githubDir, 0755)
-		assert.Nil(t, err)
-
-		// Create a file inside .git
-		testFile := filepath.Join(gitDir, "test.txt")
-		err = os.WriteFile(testFile, []byte("test"), 0644)
-		assert.Nil(t, err)
-
-		// Create .env.example
-		envExample := filepath.Join(tmpDir, ".env.example")
-		err = os.WriteFile(envExample, []byte("APP_NAME=TestApp\nAPP_KEY="), 0644)
-		assert.Nil(t, err)
-
-		// Mock go mod tidy
-		mockProcess.EXPECT().WithSpinner("Installing dependencies").Return(mockProcess).Once()
-		mockProcess.EXPECT().Path(tmpDir).Return(mockProcess).Once()
-		mockModTidyResult := mocksprocess.NewResult(t)
-		mockModTidyResult.EXPECT().Failed().Return(false).Once()
-		mockProcess.EXPECT().Run("go", "mod", "tidy").Return(mockModTidyResult).Once()
-
-		// Mock key:generate
-		mockProcess.EXPECT().WithSpinner("Generating application key").Return(mockProcess).Once()
-		mockProcess.EXPECT().Path(tmpDir).Return(mockProcess).Once()
-		mockKeyGenResult := mocksprocess.NewResult(t)
-		mockKeyGenResult.EXPECT().Failed().Return(false).Once()
-		mockProcess.EXPECT().Run("go", "run", ".", "artisan", "key:generate").Return(mockKeyGenResult).Once()
-
-		err = newCommand.initProject(tmpDir)
-		assert.Nil(t, err)
-
-		// Verify .git and .github were removed
-		assert.NoDirExists(t, gitDir)
-		assert.NoDirExists(t, githubDir)
-
-		// Verify .env was created
-		envFile := filepath.Join(tmpDir, ".env")
-		assert.FileExists(t, envFile)
-		envContent, err := os.ReadFile(envFile)
-		assert.Nil(t, err)
-		assert.Contains(t, string(envContent), "APP_NAME=TestApp")
-	})
-
-	t.Run("fails when go mod tidy fails", func(t *testing.T) {
-		mockFactory := frameworkmock.Factory()
-		mockProcess := mockFactory.Process()
-
-		tmpDir, err := os.MkdirTemp("", "test-init-project-fail")
-		assert.Nil(t, err)
-		defer func() {
-			_ = os.RemoveAll(tmpDir)
-		}()
-
-		// Create .env.example
-		envExample := filepath.Join(tmpDir, ".env.example")
-		err = os.WriteFile(envExample, []byte("APP_NAME=TestApp"), 0644)
-		assert.Nil(t, err)
-
-		// Mock go mod tidy failure
-		mockProcess.EXPECT().WithSpinner("Installing dependencies").Return(mockProcess).Once()
-		mockProcess.EXPECT().Path(tmpDir).Return(mockProcess).Once()
-		mockModTidyResult := mocksprocess.NewResult(t)
-		mockModTidyResult.EXPECT().Failed().Return(true).Once()
-		mockModTidyResult.EXPECT().Error().Return(assert.AnError).Once()
-		mockProcess.EXPECT().Run("go", "mod", "tidy").Return(mockModTidyResult).Once()
-
-		err = newCommand.initProject(tmpDir)
-		assert.NotNil(t, err)
-		assert.Contains(t, err.Error(), "failed to install dependencies")
-	})
-
-	t.Run("fails when key:generate fails", func(t *testing.T) {
-		mockFactory := frameworkmock.Factory()
-		mockProcess := mockFactory.Process()
-
-		tmpDir, err := os.MkdirTemp("", "test-init-project-keyfail")
-		assert.Nil(t, err)
-		defer func() {
-			_ = os.RemoveAll(tmpDir)
-		}()
-
-		// Create .env.example
-		envExample := filepath.Join(tmpDir, ".env.example")
-		err = os.WriteFile(envExample, []byte("APP_NAME=TestApp"), 0644)
-		assert.Nil(t, err)
-
-		// Mock go mod tidy success
-		mockProcess.EXPECT().WithSpinner("Installing dependencies").Return(mockProcess).Once()
-		mockProcess.EXPECT().Path(tmpDir).Return(mockProcess).Once()
-		mockModTidyResult := mocksprocess.NewResult(t)
-		mockModTidyResult.EXPECT().Failed().Return(false).Once()
-		mockProcess.EXPECT().Run("go", "mod", "tidy").Return(mockModTidyResult).Once()
-
-		// Mock key:generate failure
-		mockProcess.EXPECT().WithSpinner("Generating application key").Return(mockProcess).Once()
-		mockProcess.EXPECT().Path(tmpDir).Return(mockProcess).Once()
-		mockKeyGenResult := mocksprocess.NewResult(t)
-		mockKeyGenResult.EXPECT().Failed().Return(true).Once()
-		mockKeyGenResult.EXPECT().Error().Return(assert.AnError).Once()
-		mockProcess.EXPECT().Run("go", "run", ".", "artisan", "key:generate").Return(mockKeyGenResult).Once()
-
-		err = newCommand.initProject(tmpDir)
-		assert.NotNil(t, err)
-		assert.Contains(t, err.Error(), "failed to generate app key")
-	})
-
-	t.Run("sets artisan file permissions when artisan exists", func(t *testing.T) {
-		mockFactory := frameworkmock.Factory()
-		mockProcess := mockFactory.Process()
-
-		tmpDir, err := os.MkdirTemp("", "test-init-artisan")
-		assert.Nil(t, err)
-		defer func() {
-			_ = os.RemoveAll(tmpDir)
-		}()
-
-		// Create .env.example
-		envExample := filepath.Join(tmpDir, ".env.example")
-		err = os.WriteFile(envExample, []byte("APP_NAME=TestApp"), 0644)
-		assert.Nil(t, err)
-
-		// Create artisan file with different permissions
-		artisanFile := filepath.Join(tmpDir, "artisan")
-		err = os.WriteFile(artisanFile, []byte("#!/bin/bash\necho test"), 0644)
-		assert.Nil(t, err)
-
-		// Mock go mod tidy
-		mockProcess.EXPECT().WithSpinner("Installing dependencies").Return(mockProcess).Once()
-		mockProcess.EXPECT().Path(tmpDir).Return(mockProcess).Once()
-		mockModTidyResult := mocksprocess.NewResult(t)
-		mockModTidyResult.EXPECT().Failed().Return(false).Once()
-		mockProcess.EXPECT().Run("go", "mod", "tidy").Return(mockModTidyResult).Once()
-
-		// Mock key:generate
-		mockProcess.EXPECT().WithSpinner("Generating application key").Return(mockProcess).Once()
-		mockProcess.EXPECT().Path(tmpDir).Return(mockProcess).Once()
-		mockKeyGenResult := mocksprocess.NewResult(t)
-		mockKeyGenResult.EXPECT().Failed().Return(false).Once()
-		mockProcess.EXPECT().Run("go", "run", ".", "artisan", "key:generate").Return(mockKeyGenResult).Once()
-
-		err = newCommand.initProject(tmpDir)
-		assert.Nil(t, err)
-
-		// Verify artisan permissions were set correctly
-		info, err := os.Stat(artisanFile)
-		assert.Nil(t, err)
-		// On Windows, file permissions are different (0666), on Unix-like systems it's 0755
-		if env.IsWindows() {
-			assert.Equal(t, os.FileMode(0666), info.Mode().Perm())
-		} else {
-			assert.Equal(t, os.FileMode(0755), info.Mode().Perm())
-		}
-	})
+	return string(content)
 }
 
-func TestReplaceModule(t *testing.T) {
-	newCommand := &NewCommand{}
+func (s *NewCommandTestSuite) TestHandle() {
+	skeleton := map[string]string{
+		"go.mod":       "module goravel\n",
+		"main.go":      "package main\nimport \"goravel/app\"\n",
+		".env.example": "APP_NAME=Goravel\nAPP_KEY=\n",
+	}
 
-	tmpDir, err := os.MkdirTemp("", "test-replace-module")
-	assert.Nil(t, err)
-	defer func() {
-		_ = os.RemoveAll(tmpDir)
-	}()
+	tests := []struct {
+		name   string
+		setup  func()
+		assert func(err error)
+	}{
+		{
+			name: "installs goravel from the dev branch with a custom module",
+			setup: func() {
+				s.expectFlags(newFlags{name: "app", module: "github.com/me/app", dev: true})
+				s.mockContext.EXPECT().Choice("Which do you want to install?", mock.Anything).Return("goravel", nil).Once()
+				s.expectClone([]string{"--depth=1", "--branch=master", "https://github.com/goravel/goravel.git"}, skeleton, nil)
+				s.expectSpinner()
+				s.expectModTidy(nil)
+			},
+			assert: func(err error) {
+				s.NoError(err)
+				projectPath := filepath.Join(s.tmpDir, "app")
+				if !env.IsWindows() {
+					info, err := os.Stat(projectPath)
+					s.Require().NoError(err)
+					s.Equal(os.FileMode(0755), info.Mode().Perm(), "same permissions as git clone")
+				}
+				s.Contains(s.readFile(filepath.Join(projectPath, "go.mod")), "module github.com/me/app")
+				s.Contains(s.readFile(filepath.Join(projectPath, "main.go")), `"github.com/me/app/app"`)
+				s.Regexp(`(?m)^APP_KEY=`+appKeyPattern+`$`, s.readFile(filepath.Join(projectPath, ".env")))
+			},
+		},
+		{
+			name: "lite runs package:install when interactive",
+			setup: func() {
+				s.expectFlags(newFlags{name: "app", module: "goravel", lite: true})
+				s.expectClone([]string{"--depth=1", "https://github.com/goravel/goravel-lite.git"}, skeleton, nil)
+				s.expectModTidy(nil)
+				s.mockProcess.EXPECT().TTY().Return(s.mockProcess).Once()
+				s.mockProcess.EXPECT().Path(mock.Anything).Return(s.mockProcess).Once()
+				s.mockProcess.EXPECT().Run("go", "run", ".", "artisan", "package:install").Return(s.newResult(nil)).Once()
+			},
+			assert: func(err error) {
+				s.NoError(err)
+				s.DirExists(filepath.Join(s.tmpDir, "app"))
+			},
+		},
+		{
+			// package:install is not expected: it asks questions, so it must be skipped
+			name: "lite skips package:install without interaction",
+			setup: func() {
+				s.expectFlags(newFlags{name: "app", lite: true, noInteraction: true})
+				s.expectClone([]string{"--depth=1", "https://github.com/goravel/goravel-lite.git"}, skeleton, nil)
+				s.expectModTidy(nil)
+			},
+			assert: func(err error) {
+				s.NoError(err)
+				s.FileExists(filepath.Join(s.tmpDir, "app", ".env"))
+			},
+		},
+		{
+			name: "failed clone keeps the existing project and leaves nothing behind",
+			setup: func() {
+				s.Require().NoError(os.Mkdir("app", 0755))
+				s.Require().NoError(os.WriteFile(filepath.Join("app", "keep.txt"), []byte("keep"), 0644))
+				s.expectFlags(newFlags{name: "app", force: true, noInteraction: true})
+				s.expectClone([]string{"--depth=1", "https://github.com/goravel/goravel.git"}, nil, assert.AnError)
+			},
+			assert: func(err error) {
+				s.ErrorIs(err, assert.AnError)
+				s.Equal("keep", s.readFile(filepath.Join(s.tmpDir, "app", "keep.txt")))
+				entries, err := os.ReadDir(s.tmpDir)
+				s.Require().NoError(err)
+				s.Len(entries, 1)
+			},
+		},
+		{
+			name: "stops before asking anything when a tool is missing",
+			setup: func() {
+				original := lookPath
+				s.T().Cleanup(func() { lookPath = original })
+				lookPath = func(file string) (string, error) { return "", assert.AnError }
+			},
+			assert: func(err error) {
+				s.EqualError(err, "git is required but was not found in PATH")
+			},
+		},
+	}
 
-	goFile := filepath.Join(tmpDir, "main.go")
-	modFile := filepath.Join(tmpDir, "go.mod")
-	invalidFile := filepath.Join(tmpDir, "ignore.txt")
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			s.mockContext.EXPECT().NewLine().Once()
+			tt.setup()
 
-	newModule := "github.com/example/project"
+			tt.assert(s.newCommand.Handle(s.mockContext))
+		})
+	}
+}
 
-	// Write content to files
-	err = os.WriteFile(goFile, []byte(`package main
-import "goravel/utils"
-func main() {}`), os.ModePerm)
-	assert.Nil(t, err)
+func (s *NewCommandTestSuite) TestGetOptions() {
+	tests := []struct {
+		name        string
+		flags       newFlags
+		existing    bool
+		choice      string
+		expectError string
+		expected    newOptions
+	}{
+		{
+			name:        "existing directory without force",
+			flags:       newFlags{name: "app"},
+			existing:    true,
+			expectError: "the directory already exists. use the --force flag to overwrite",
+		},
+		{
+			name:     "existing directory with force",
+			flags:    newFlags{name: "app", force: true, noInteraction: true},
+			existing: true,
+			expected: newOptions{name: "app", module: "goravel", force: true, noInteraction: true},
+		},
+		{
+			name:     "asks for the project type",
+			flags:    newFlags{name: "app", module: "github.com/me/app"},
+			choice:   "lite",
+			expected: newOptions{name: "app", module: "github.com/me/app", lite: true},
+		},
+		{
+			name:     "lite flag skips the project type question",
+			flags:    newFlags{name: "app", module: "github.com/me/app", lite: true},
+			expected: newOptions{name: "app", module: "github.com/me/app", lite: true},
+		},
+		{
+			name:     "no interaction uses defaults",
+			flags:    newFlags{name: "app", noInteraction: true},
+			expected: newOptions{name: "app", module: "goravel", noInteraction: true},
+		},
+	}
 
-	err = os.WriteFile(modFile, []byte("module goravel\nrequire example.com v1.0.0"), os.ModePerm)
-	assert.Nil(t, err)
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			if tt.existing {
+				s.Require().NoError(os.Mkdir(tt.flags.name, 0755))
+			}
+			if tt.choice != "" {
+				s.mockContext.EXPECT().Choice("Which do you want to install?", mock.Anything).Return(tt.choice, nil).Once()
+			}
+			s.expectFlags(tt.flags)
 
-	err = os.WriteFile(invalidFile, []byte("This is a test file."), os.ModePerm)
-	assert.Nil(t, err)
+			opts, err := s.newCommand.getOptions(s.mockContext)
+			if tt.expectError != "" {
+				s.EqualError(err, tt.expectError)
+				return
+			}
 
-	mockContext := mocksconsole.NewContext(t)
-	mockContext.EXPECT().Spinner("Updating module name to \""+newModule+"\"", mock.MatchedBy(func(opt console.SpinnerOption) bool {
-		return opt.Action != nil
-	})).RunAndReturn(func(_ string, opt console.SpinnerOption) error {
-		return opt.Action()
-	}).Once()
+			s.NoError(err)
+			tt.expected.path = filepath.Join(s.tmpDir, tt.flags.name)
+			s.Equal(tt.expected, opts)
+		})
+	}
+}
 
-	err = newCommand.replaceModule(mockContext, tmpDir, newModule)
-	assert.Nil(t, err)
+func (s *NewCommandTestSuite) TestGetProjectName() {
+	tests := []struct {
+		name          string
+		input         string
+		noInteraction bool
+		expectError   string
+	}{
+		{name: "dashes", input: "my-project"},
+		{name: "underscores", input: "my_project"},
+		{name: "periods", input: "my.project"},
+		{name: "mixed characters", input: "MyProject_123-v2.0"},
+		{name: "special characters", input: "my@project", expectError: invalidNameError},
+		{name: "spaces", input: "my project", expectError: invalidNameError},
+		{name: "slash", input: "my/project", expectError: invalidNameError},
+		{name: "current directory", input: ".", expectError: `the name can't be "." or ".."`},
+		{name: "parent directory", input: "..", expectError: `the name can't be "." or ".."`},
+		{name: "required without interaction", noInteraction: true, expectError: "the project name is required, e.g. goravel new example-app"},
+	}
 
-	modContent, err := os.ReadFile(modFile)
-	assert.Nil(t, err)
-	assert.Contains(t, string(modContent), "module github.com/example/project")
-	assert.NotContains(t, string(modContent), "module goravel")
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			name, err := s.newCommand.getProjectName(s.mockContext, tt.input, tt.noInteraction)
+			if tt.expectError != "" {
+				s.EqualError(err, tt.expectError)
+				return
+			}
 
-	goContent, err := os.ReadFile(goFile)
-	assert.Nil(t, err)
-	assert.Contains(t, string(goContent), "import \"github.com/example/project/utils\"")
-	assert.NotContains(t, string(goContent), "import \"goravel/utils\"")
+			s.NoError(err)
+			s.Equal(tt.input, name)
+		})
+	}
+}
 
-	invalidContent, err := os.ReadFile(invalidFile)
-	assert.Nil(t, err)
-	assert.Equal(t, "This is a test file.", string(invalidContent))
+func (s *NewCommandTestSuite) TestGetModuleName() {
+	tests := []struct {
+		name        string
+		module      string
+		expected    string
+		expectError bool
+	}{
+		{name: "defaults to goravel without interaction", expected: "goravel"},
+		{name: "keeps the given module", module: "github.com/me/app", expected: "github.com/me/app"},
+		{name: "rejects an invalid module", module: "github.com/me/app!", expectError: true},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			module, err := s.newCommand.getModuleName(s.mockContext, tt.module, true)
+			if tt.expectError {
+				s.ErrorContains(err, "invalid module name format")
+				return
+			}
+
+			s.NoError(err)
+			s.Equal(tt.expected, module)
+		})
+	}
+}
+
+func (s *NewCommandTestSuite) TestCheckModuleName() {
+	valid := []string{
+		"goravel", "github.com/goravel/framework", "github.com/user/project", "example.com/my-project",
+		"example.com/my_project", "gitlab.com/user/project/submodule", "project-name", "project_name",
+		"project.name", "example.com/~user/project", "a", "123", "example.com/project-123_test.v2",
+	}
+	invalid := []string{
+		"invalid:module", "module with spaces", "github.com/user/project!", "example.com/project@version",
+		"project#name", "project$name", "project%name", "project&name", "project*name", "project(name)",
+		"project[name]", "project{name}", "project|name", "project\\name", "project;name", "project'name",
+		"project\"name", "project<name>", "project?name",
+	}
+
+	for _, module := range valid {
+		s.True(checkModuleName(module), "expected %s to be valid", module)
+	}
+	for _, module := range invalid {
+		s.False(checkModuleName(module), "expected %s to be invalid", module)
+	}
+}
+
+func (s *NewCommandTestSuite) TestInitProject() {
+	tests := []struct {
+		name        string
+		files       map[string]string
+		tidyErr     error
+		expectError string
+	}{
+		{
+			name: "removes git files, sets artisan permissions and writes .env",
+			files: map[string]string{
+				".git/HEAD":      "ref",
+				".github/ci.yml": "ci",
+				"main_test.go":   "package main",
+				"artisan":        "#!/bin/bash",
+				".env.example":   "APP_NAME=Goravel\nAPP_KEY=\n",
+			},
+		},
+		{
+			name:        "fails when go mod tidy fails",
+			files:       map[string]string{".env.example": "APP_KEY=\n"},
+			tidyErr:     assert.AnError,
+			expectError: "failed to install dependencies",
+		},
+		{
+			name:        "fails when .env.example is missing",
+			expectError: "failed to generate .env file",
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			for name, content := range tt.files {
+				s.Require().NoError(os.MkdirAll(filepath.Dir(name), 0755))
+				s.Require().NoError(os.WriteFile(name, []byte(content), 0644))
+			}
+			s.expectModTidy(tt.tidyErr)
+
+			err := s.newCommand.initProject(s.tmpDir)
+			if tt.expectError != "" {
+				s.ErrorContains(err, tt.expectError)
+				return
+			}
+
+			s.NoError(err)
+			s.NoDirExists(".git")
+			s.NoDirExists(".github")
+			s.NoFileExists("main_test.go")
+			s.Regexp(`^APP_NAME=Goravel\nAPP_KEY=`+appKeyPattern+`\n$`, s.readFile(".env"))
+
+			info, err := os.Stat("artisan")
+			s.Require().NoError(err)
+			// Windows has no execute bit, so the mode stays 0666 there
+			if env.IsWindows() {
+				s.Equal(os.FileMode(0666), info.Mode().Perm())
+			} else {
+				s.Equal(os.FileMode(0755), info.Mode().Perm())
+			}
+		})
+	}
+}
+
+func (s *NewCommandTestSuite) TestReplaceModule() {
+	// A line longer than bufio.Scanner's 64 KB limit
+	longLine := "// " + strings.Repeat("x", 70*1024)
+
+	tests := []struct {
+		name     string
+		module   string
+		files    map[string]string
+		expected map[string]string
+	}{
+		{
+			name:   "replaces the module in go.mod and imports only",
+			module: "github.com/me/app",
+			files: map[string]string{
+				"go.mod":     "module goravel\nrequire example.com v1.0.0",
+				"main.go":    "package main\nimport \"goravel/utils\"",
+				"ignore.txt": "module goravel",
+			},
+			expected: map[string]string{
+				"go.mod":     "module github.com/me/app\nrequire example.com v1.0.0",
+				"main.go":    "package main\nimport \"github.com/me/app/utils\"",
+				"ignore.txt": "module goravel",
+			},
+		},
+		{
+			name:   "keeps line endings and long lines",
+			module: "github.com/me/app",
+			files: map[string]string{
+				"go.mod":  "module goravel\r\n\r\ngo 1.25.0\r\n",
+				"main.go": "package main\r\nimport \"goravel/app\"\r\n" + longLine + "\r\n",
+			},
+			expected: map[string]string{
+				"go.mod":  "module github.com/me/app\r\n\r\ngo 1.25.0\r\n",
+				"main.go": "package main\r\nimport \"github.com/me/app/app\"\r\n" + longLine + "\r\n",
+			},
+		},
+		{
+			name:     "does nothing for the default module",
+			module:   "goravel",
+			files:    map[string]string{"go.mod": "module goravel\n"},
+			expected: map[string]string{"go.mod": "module goravel\n"},
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			for name, content := range tt.files {
+				s.Require().NoError(os.WriteFile(name, []byte(content), 0644))
+			}
+			if tt.module != "goravel" {
+				s.expectSpinner()
+			}
+
+			s.NoError(s.newCommand.replaceModule(s.mockContext, s.tmpDir, tt.module))
+			for name, content := range tt.expected {
+				s.Equal(content, s.readFile(name), name)
+			}
+		})
+	}
+}
+
+func (s *NewCommandTestSuite) TestWriteEnvFile() {
+	tests := []struct {
+		name     string
+		example  string
+		expected string
+	}{
+		{name: "replaces APP_KEY and keeps the rest", example: "APP_NAME=Goravel\r\nAPP_KEY=\r\nAPP_DEBUG=true\r\n", expected: `^APP_NAME=Goravel\r\nAPP_KEY=` + appKeyPattern + `\r\nAPP_DEBUG=true\r\n$`},
+		{name: "adds APP_KEY with the file's own line ending", example: "APP_NAME=Goravel\r\n", expected: `^APP_NAME=Goravel\r\nAPP_KEY=` + appKeyPattern + `\r\n$`},
+		{name: "adds APP_KEY when it is missing", example: "APP_NAME=Goravel", expected: `^APP_NAME=Goravel\nAPP_KEY=` + appKeyPattern + `\n$`},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			s.Require().NoError(os.WriteFile(".env.example", []byte(tt.example), 0644))
+
+			s.NoError(writeEnvFile(s.tmpDir))
+			s.Regexp(tt.expected, s.readFile(".env"))
+		})
+	}
+}
+
+func (s *NewCommandTestSuite) TestCheckRequiredTools() {
+	tests := []struct {
+		name        string
+		missing     string
+		expectError string
+	}{
+		{name: "all tools found"},
+		{name: "git missing", missing: "git", expectError: "git is required but was not found in PATH"},
+		{name: "go missing", missing: "go", expectError: "go is required but was not found in PATH"},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			original := lookPath
+			s.T().Cleanup(func() { lookPath = original })
+			lookPath = func(file string) (string, error) {
+				if file == tt.missing {
+					return "", assert.AnError
+				}
+				return "/usr/bin/" + file, nil
+			}
+
+			err := checkRequiredTools()
+			if tt.expectError != "" {
+				s.EqualError(err, tt.expectError)
+				return
+			}
+
+			s.NoError(err)
+		})
+	}
+}
+
+func (s *NewCommandTestSuite) TestMoveIntoPlace() {
+	tests := []struct {
+		name            string
+		srcExists       bool
+		dstExists       bool
+		force           bool
+		expectError     string
+		expectedFile    string
+		expectedEntries []string
+	}{
+		{name: "moves to a new directory", srcExists: true, expectedFile: "new.txt", expectedEntries: []string{"app"}},
+		{name: "replaces an existing directory with force", srcExists: true, dstExists: true, force: true, expectedFile: "new.txt", expectedEntries: []string{"app"}},
+		{name: "refuses an existing directory without force", srcExists: true, dstExists: true, expectError: "the directory already exists. use the --force flag to overwrite", expectedFile: "old.txt", expectedEntries: []string{"app", "src"}},
+		// src doesn't exist, so the move fails after dst was moved aside
+		{name: "restores the existing directory when the move fails", dstExists: true, force: true, expectError: "failed to move the project into place", expectedFile: "old.txt", expectedEntries: []string{"app"}},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			for dir, exists := range map[string]bool{"src": tt.srcExists, "app": tt.dstExists} {
+				if exists {
+					file := map[string]string{"src": "new.txt", "app": "old.txt"}[dir]
+					s.Require().NoError(os.Mkdir(dir, 0755))
+					s.Require().NoError(os.WriteFile(filepath.Join(dir, file), nil, 0644))
+				}
+			}
+
+			err := moveIntoPlace(filepath.Join(s.tmpDir, "src"), filepath.Join(s.tmpDir, "app"), tt.force)
+			if tt.expectError != "" {
+				s.ErrorContains(err, tt.expectError)
+			} else {
+				s.NoError(err)
+			}
+
+			s.FileExists(filepath.Join("app", tt.expectedFile))
+			entries, err := os.ReadDir(s.tmpDir)
+			s.Require().NoError(err)
+			var names []string
+			for _, entry := range entries {
+				names = append(names, entry.Name())
+			}
+			s.Equal(tt.expectedEntries, names)
+		})
+	}
 }

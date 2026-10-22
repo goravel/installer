@@ -5,7 +5,7 @@
 [![Release](https://img.shields.io/github/release/goravel/installer.svg)](https://github.com/goravel/installer/releases)
 [![Test](https://github.com/goravel/installer/actions/workflows/test.yml/badge.svg)](https://github.com/goravel/installer/actions)
 [![Report Card](https://goreportcard.com/badge/github.com/goravel/installer)](https://goreportcard.com/report/github.com/goravel/installer)
-[![Codecov](https://codecov.io/gh/goravel/gin/branch/master/graph/badge.svg)](https://codecogin/v.io/gh/goravel/installer)
+[![Codecov](https://codecov.io/gh/goravel/installer/branch/master/graph/badge.svg)](https://codecov.io/gh/goravel/installer)
 ![License](https://img.shields.io/github/license/goravel/installer)
 
 Goravel Installer is a command-line tool that helps you to install the Goravel framework.
@@ -19,7 +19,28 @@ go install github.com/goravel/installer/goravel@latest
 ## Usage
 
 ```bash
+# Create a new project, the installer asks for anything it needs
 goravel new blog
+
+# Set your own module name instead of the default "goravel"
+goravel new blog --module github.com/yourname/blog
+
+# Install Goravel Lite, which only includes essential facades,
+# then pick the facades you want
+goravel new blog --lite
+
+# Don't ask any questions, useful for scripts and CI
+goravel new blog -n --module github.com/yourname/blog
+
+# Lite without questions installs no extra facades, add them later
+# with ./artisan package:install
+goravel new blog --lite -n
+
+# Replace the folder if it already exists
+goravel new blog --force
+
+# Install the latest development version
+goravel new blog --dev
 ```
 
 ## Skills
@@ -66,7 +87,7 @@ goravel agent:install --force
 ```bash
 goravel upgrade
 
-// Specific a version
+# Upgrade to a specific version
 goravel upgrade v1.1.1
 ```
 
