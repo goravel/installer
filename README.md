@@ -36,6 +36,10 @@ goravel new blog -n --module github.com/yourname/blog
 # with ./artisan package:install
 goravel new blog --lite -n
 
+# Prepare the project for modules (runs ./artisan modular:init),
+# then create one with ./artisan make:module Blog
+goravel new blog --modular
+
 # Replace the folder if it already exists
 goravel new blog --force
 
