@@ -42,6 +42,7 @@ type newOptions struct {
 	path          string
 	module        string
 	lite          bool
+	modular       bool
 	dev           bool
 	force         bool
 	noInteraction bool
@@ -94,6 +95,11 @@ func (r *NewCommand) Extend() command.Extend {
 				DisableDefaultText: true,
 			},
 			&command.BoolFlag{
+				Name:               "modular",
+				Usage:              "Prepare the application for modules",
+				DisableDefaultText: true,
+			},
+			&command.BoolFlag{
 				Name:               "no-interaction",
 				Aliases:            []string{"n"},
 				Usage:              "Don't ask any questions, use the flags and defaults instead",
@@ -123,6 +129,9 @@ func (r *NewCommand) Handle(ctx console.Context) error {
 	if opts.skipFacades() {
 		color.Infoln("No facades were installed. Run [<op=bold>./artisan package:install</>] in the project to add them.")
 	}
+	if opts.modular {
+		color.Infoln("Create your first module with [<op=bold>./artisan make:module Blog</>].")
+	}
 	color.Successln("Application ready in [<op=bold>" + opts.name + "</>]. Build something amazing! 🚀🚀")
 	color.Successln("Are you new to Goravel? Please visit https://goravel.dev to get started.")
 
@@ -134,6 +143,7 @@ func (r *NewCommand) getOptions(ctx console.Context) (newOptions, error) {
 		name:          ctx.Argument(0),
 		module:        ctx.Option("module"),
 		lite:          ctx.OptionBool("lite"),
+		modular:       ctx.OptionBool("modular"),
 		dev:           ctx.OptionBool("dev"),
 		force:         ctx.OptionBool("force"),
 		noInteraction: ctx.OptionBool("no-interaction"),
@@ -220,6 +230,13 @@ func (r *NewCommand) generateProject(ctx console.Context, opts newOptions) error
 
 	if opts.lite && !opts.skipFacades() {
 		if err := r.installFacades(tmpPath); err != nil {
+			return err
+		}
+	}
+
+	// After the facades, so modular:init sees the final app/facades.
+	if opts.modular {
+		if err := r.initModular(tmpPath); err != nil {
 			return err
 		}
 	}
@@ -366,6 +383,21 @@ func (r *NewCommand) installFacades(path string) error {
 	if res := facades.Process().TTY().Path(path).Run("go", "run", ".", "artisan", "package:install"); res.Failed() {
 		return fmt.Errorf("failed to install facades: %w", res.Error())
 	}
+
+	return nil
+}
+
+func (r *NewCommand) initModular(path string) error {
+	if res := facades.Process().WithSpinner("Preparing the application for modules").Path(path).Run("go", "run", ".", "artisan", "modular:init"); res.Failed() {
+		return fmt.Errorf("failed to prepare the application for modules: %w", res.Error())
+	}
+
+	// An unknown artisan command still exits with 0, so check what modular:init writes.
+	if !file.Exists(filepath.Join(path, "bootstrap", "modules.go")) {
+		return errors.New("failed to prepare the application for modules: this Goravel version has no modular:init command")
+	}
+
+	color.Successln("Prepared the application for modules")
 
 	return nil
 }

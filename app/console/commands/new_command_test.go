@@ -54,14 +54,15 @@ func (s *NewCommandTestSuite) SetupSubTest() {
 }
 
 type newFlags struct {
-	name, module                    string
-	lite, dev, force, noInteraction bool
+	name, module                             string
+	lite, modular, dev, force, noInteraction bool
 }
 
 func (s *NewCommandTestSuite) expectFlags(flags newFlags) {
 	s.mockContext.EXPECT().Argument(0).Return(flags.name).Once()
 	s.mockContext.EXPECT().Option("module").Return(flags.module).Once()
 	s.mockContext.EXPECT().OptionBool("lite").Return(flags.lite).Once()
+	s.mockContext.EXPECT().OptionBool("modular").Return(flags.modular).Once()
 	s.mockContext.EXPECT().OptionBool("dev").Return(flags.dev).Once()
 	s.mockContext.EXPECT().OptionBool("force").Return(flags.force).Once()
 	s.mockContext.EXPECT().OptionBool("no-interaction").Return(flags.noInteraction).Once()
@@ -98,6 +99,27 @@ func (s *NewCommandTestSuite) expectModTidy(err error) {
 	s.mockProcess.EXPECT().WithSpinner("Installing dependencies").Return(s.mockProcess).Once()
 	s.mockProcess.EXPECT().Path(mock.Anything).Return(s.mockProcess).Once()
 	s.mockProcess.EXPECT().Run("go", "mod", "tidy").Return(s.newResult(err)).Once()
+}
+
+// expectModularInit expects artisan modular:init, which writes the given files.
+func (s *NewCommandTestSuite) expectModularInit(files []string, err error) *mock.Call {
+	var projectPath string
+	result := s.newResult(err)
+
+	s.mockProcess.EXPECT().WithSpinner("Preparing the application for modules").Return(s.mockProcess).Once()
+	s.mockProcess.EXPECT().Path(mock.Anything).RunAndReturn(func(path string) process.Process {
+		projectPath = path
+
+		return s.mockProcess
+	}).Once()
+	return s.mockProcess.EXPECT().Run("go", "run", ".", "artisan", "modular:init").RunAndReturn(func(string, ...string) process.Result {
+		for _, name := range files {
+			s.Require().NoError(os.MkdirAll(filepath.Dir(filepath.Join(projectPath, name)), 0755))
+			s.Require().NoError(os.WriteFile(filepath.Join(projectPath, name), nil, 0644))
+		}
+
+		return result
+	}).Once()
 }
 
 func (s *NewCommandTestSuite) expectSpinner() {
@@ -176,6 +198,64 @@ func (s *NewCommandTestSuite) TestHandle() {
 			},
 		},
 		{
+			name: "modular runs modular:init",
+			setup: func() {
+				s.expectFlags(newFlags{name: "app", modular: true, noInteraction: true})
+				s.expectClone([]string{"--depth=1", "https://github.com/goravel/goravel.git"}, skeleton, nil)
+				s.expectModTidy(nil)
+				s.expectModularInit([]string{"bootstrap/modules.go"}, nil)
+			},
+			assert: func(err error) {
+				s.NoError(err)
+				s.FileExists(filepath.Join(s.tmpDir, "app", "bootstrap", "modules.go"))
+			},
+		},
+		{
+			name: "modular runs modular:init after package:install for lite",
+			setup: func() {
+				s.expectFlags(newFlags{name: "app", module: "goravel", lite: true, modular: true})
+				s.expectClone([]string{"--depth=1", "https://github.com/goravel/goravel-lite.git"}, skeleton, nil)
+				s.expectModTidy(nil)
+				s.mockProcess.EXPECT().TTY().Return(s.mockProcess).Once()
+				s.mockProcess.EXPECT().Path(mock.Anything).Return(s.mockProcess).Once()
+				installed := s.mockProcess.EXPECT().Run("go", "run", ".", "artisan", "package:install").Return(s.newResult(nil)).Once()
+				s.expectModularInit([]string{"bootstrap/modules.go"}, nil).NotBefore(installed)
+			},
+			assert: func(err error) {
+				s.NoError(err)
+			},
+		},
+		{
+			name: "failed modular:init leaves nothing behind",
+			setup: func() {
+				s.expectFlags(newFlags{name: "app", modular: true, noInteraction: true})
+				s.expectClone([]string{"--depth=1", "https://github.com/goravel/goravel.git"}, skeleton, nil)
+				s.expectModTidy(nil)
+				s.expectModularInit(nil, assert.AnError)
+			},
+			assert: func(err error) {
+				s.ErrorIs(err, assert.AnError)
+				s.ErrorContains(err, "failed to prepare the application for modules")
+				entries, err := os.ReadDir(s.tmpDir)
+				s.Require().NoError(err)
+				s.Empty(entries)
+			},
+		},
+		{
+			// An unknown artisan command exits with 0 and writes nothing
+			name: "fails when the skeleton has no modular:init",
+			setup: func() {
+				s.expectFlags(newFlags{name: "app", modular: true, noInteraction: true})
+				s.expectClone([]string{"--depth=1", "https://github.com/goravel/goravel.git"}, skeleton, nil)
+				s.expectModTidy(nil)
+				s.expectModularInit(nil, nil)
+			},
+			assert: func(err error) {
+				s.EqualError(err, "failed to prepare the application for modules: this Goravel version has no modular:init command")
+				s.NoDirExists(filepath.Join(s.tmpDir, "app"))
+			},
+		},
+		{
 			name: "failed clone keeps the existing project and leaves nothing behind",
 			setup: func() {
 				s.Require().NoError(os.Mkdir("app", 0755))
@@ -240,6 +320,11 @@ func (s *NewCommandTestSuite) TestGetOptions() {
 			flags:    newFlags{name: "app", module: "github.com/me/app"},
 			choice:   "lite",
 			expected: newOptions{name: "app", module: "github.com/me/app", lite: true},
+		},
+		{
+			name:     "modular flag",
+			flags:    newFlags{name: "app", modular: true, noInteraction: true},
+			expected: newOptions{name: "app", module: "goravel", modular: true, noInteraction: true},
 		},
 		{
 			name:     "lite flag skips the project type question",
